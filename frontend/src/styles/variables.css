@@ -1,0 +1,70 @@
+:root {
+  /* Colors - Base & Surfaces */
+  --bg-base: #0a0a0f;
+  --bg-surface: #12121a;
+  --bg-panel: rgba(20, 20, 30, 0.4);
+  --bg-panel-hover: rgba(30, 30, 45, 0.6);
+  --bg-overlay: rgba(10, 10, 15, 0.8);
+  
+  /* Brand Colors */
+  --accent-primary: #7b3fe4;
+  --accent-primary-hover: #8b54ed;
+  --accent-secondary: #4361ee;
+  --accent-secondary-hover: #5672f0;
+  
+  /* Status Colors */
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+
+  /* Typography Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1b5;
+  --text-tertiary: #6b6b7a;
+  
+  /* Borders */
+  --border-glass: 1px solid rgba(255, 255, 255, 0.08);
+  --border-light: 1px solid rgba(255, 255, 255, 0.15);
+
+  /* Shadows & Depth */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(123, 63, 228, 0.3);
+  
+  /* Clay Effects */
+  --clay-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 8px 16px rgba(0, 0, 0, 0.3);
+    
+  /* Glass Effects */
+  --glass-blur: blur(16px);
+  --glass-bg: linear-gradient(145deg, rgba(30, 30, 45, 0.6), rgba(20, 20, 30, 0.3));
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
