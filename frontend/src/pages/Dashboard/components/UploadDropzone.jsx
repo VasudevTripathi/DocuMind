@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GlassPanel } from '../../../components/ui/GlassPanel';
 import { Button } from '../../../components/ui/Button';
-import '../Dashboard.css';
+import '../../Landing/Landing.css';
 
 export const UploadDropzone = () => {
   const navigate = useNavigate();
