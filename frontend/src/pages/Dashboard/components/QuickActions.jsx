@@ -1,14 +1,17 @@
 import React from 'react';
 import { GlassPanel } from '../../../components/ui/GlassPanel';
 import { FileText, HelpCircle, Columns, Network, Table } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const QuickActions = () => {
+  const navigate = useNavigate();
+
   const actions = [
-    { icon: FileText, label: 'Summarize a document', color: 'text-accent-primary' },
-    { icon: HelpCircle, label: 'Ask a question', color: 'text-accent-secondary' },
-    { icon: Columns, label: 'Compare documents', color: 'text-success' },
-    { icon: Network, label: 'Generate mind map', color: 'text-warning' },
-    { icon: Table, label: 'Extract data (tables)', color: 'text-danger' },
+    { icon: FileText, label: 'Summarize a document', color: 'text-accent-primary', path: '/documents' },
+    { icon: HelpCircle, label: 'Ask a question', color: 'text-accent-secondary', path: '/chat' },
+    { icon: Columns, label: 'Compare documents', color: 'text-success', path: '/compare' },
+    { icon: Network, label: 'Generate mind map', color: 'text-warning', path: '/chat' },
+    { icon: Table, label: 'Extract data (tables)', color: 'text-danger', path: '/documents' },
   ];
 
   return (
@@ -16,7 +19,19 @@ export const QuickActions = () => {
       <h3 className="section-title mb-4">Quick Actions</h3>
       <div className="quick-actions-list flex flex-col gap-2">
         {actions.map((action, idx) => (
-          <GlassPanel key={idx} className="quick-action-item">
+          <GlassPanel 
+            key={idx} 
+            className="quick-action-item cursor-pointer"
+            onClick={() => navigate(action.path)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(action.path);
+              }
+            }}
+          >
             <div className={`action-icon-bg ${action.color}`}>
               <action.icon size={16} />
             </div>

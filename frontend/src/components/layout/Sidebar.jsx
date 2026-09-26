@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import {
@@ -10,40 +10,55 @@ import {
 } from 'lucide-react';
 import './layout.css';
 
-export const Sidebar = ({ isOpen, toggle }) => {
+export const Sidebar = ({ isOpen, toggle, isMobile, closeMobileSidebar }) => {
   const navItems = [
     { name: 'Home', icon: Home, path: '/dashboard' },
     { name: 'Documents', icon: FileText, path: '/documents' },
     { name: 'Analytics', icon: BarChart2, path: '/analytics' },
     { name: 'Compare', icon: CheckSquare, path: '/compare' },
     { name: 'AI Playground', icon: MessageSquare, path: '/chat' },
-    { name: 'Calendar', icon: Calendar, path: '/placeholder/calendar' },
-    { name: 'Knowledge Base', icon: Book, path: '/placeholder/kb' },
+    { name: 'Calendar', icon: Calendar, path: '/calendar' },
+    { name: 'Knowledge Base', icon: Book, path: '/knowledge-base' },
   ];
 
   const projects = [
-    { name: 'Research', icon: FolderKanban },
-    { name: 'Academics', icon: FolderKanban },
-    { name: 'Work', icon: FolderKanban },
-    { name: 'Personal', icon: Folder },
+    { name: 'Research', icon: FolderKanban, path: '/projects/research' },
+    { name: 'Academics', icon: FolderKanban, path: '/projects/academics' },
+    { name: 'Work', icon: FolderKanban, path: '/projects/work' },
+    { name: 'Personal', icon: Folder, path: '/projects/personal' },
   ];
+
+  const handleNavClick = () => {
+    if (isMobile && closeMobileSidebar) {
+      closeMobileSidebar();
+    }
+  };
 
   return (
     <motion.aside 
-      className={clsx('sidebar glass-panel', !isOpen && 'collapsed')}
+      className={clsx('sidebar glass-panel', !isOpen && !isMobile && 'collapsed')}
       initial={false}
-      animate={{ width: isOpen ? 260 : 80 }}
+      animate={{ 
+        width: isMobile ? 260 : (isOpen ? 260 : 80),
+        x: isMobile ? (isOpen ? 0 : -100 + '%') : 0 // The percentage string x:-100% works better in Framer Motion for full offset
+      }}
+      style={{ x: isMobile ? (isOpen ? 0 : '-100%') : 0 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       <div className="sidebar-header">
-        <div className="brand">
+        <Link 
+          to="/" 
+          className="brand" 
+          onClick={handleNavClick}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}
+        >
           <div className="brand-logo">
             <Zap size={20} className="text-accent-primary" />
           </div>
-          {isOpen && <span className="brand-name">DocuMind AI</span>}
-        </div>
+          {(isOpen || isMobile) && <span className="brand-name">DocuMind AI</span>}
+        </Link>
         <button className="toggle-btn" onClick={toggle}>
-          {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          {isMobile ? <ChevronLeft size={18} /> : (isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />)}
         </button>
       </div>
 
@@ -53,29 +68,37 @@ export const Sidebar = ({ isOpen, toggle }) => {
             <NavLink
               key={item.name}
               to={item.path}
+              title={!isOpen && !isMobile ? item.name : undefined}
               className={({ isActive }) => clsx('nav-item', isActive && 'active')}
+              onClick={handleNavClick}
             >
               <item.icon size={20} className="nav-icon" />
-              {isOpen && <span className="nav-label">{item.name}</span>}
+              {(isOpen || isMobile) && <span className="nav-label">{item.name}</span>}
             </NavLink>
           ))}
         </nav>
 
-        {isOpen && (
+        { (isOpen || isMobile) && (
           <div className="nav-group projects-group">
             <h4 className="group-title">Projects</h4>
             {projects.map((project) => (
-              <div key={project.name} className="nav-item project-item">
+              <NavLink 
+                key={project.name} 
+                to={project.path}
+                className={({ isActive }) => clsx('nav-item project-item', isActive && 'active')}
+                onClick={handleNavClick}
+                style={{ textDecoration: 'none' }}
+              >
                 <project.icon size={18} className="nav-icon" />
                 <span className="nav-label">{project.name}</span>
-              </div>
+              </NavLink>
             ))}
           </div>
         )}
       </div>
 
       <div className="sidebar-footer">
-        {isOpen ? (
+        { (isOpen || isMobile) ? (
           <div className="storage-widget clay-panel">
             <div className="storage-header">
               <span className="storage-title">Storage</span>

@@ -130,12 +130,83 @@
   position: relative;
   width: 280px;
   height: 380px;
-  background: white;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.02);
   transform: perspective(1000px) rotateY(-15deg) rotateX(10deg);
   padding: var(--space-6);
+  backdrop-filter: blur(10px);
 }
+
+.doc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.doc-mock-title {
+  height: 16px;
+  width: 60%;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.doc-mock-line {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.doc-mock-line.full { width: 100%; }
+.doc-mock-line.almost-full { width: 90%; }
+.doc-mock-line.partial { width: 70%; }
+.doc-mock-line.medium { width: 40%; }
+
+.doc-mock-entities {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.doc-entity {
+  height: 10px;
+  border-radius: 4px;
+}
+
+.doc-entity.purple { width: 40px; background: rgba(123, 63, 228, 0.5); }
+.doc-entity.blue { width: 60px; background: rgba(67, 97, 238, 0.5); }
+
+.doc-highlight-area {
+  margin-top: 16px;
+  height: 40px;
+  background: rgba(123, 63, 228, 0.1);
+  border-left: 2px solid var(--accent-primary);
+  border-radius: 2px;
+}
+
+.floating-insight {
+  position: absolute;
+  padding: 8px 12px;
+  background: rgba(20, 20, 30, 0.8);
+  border: var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glow);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  backdrop-filter: var(--glass-blur);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+.floating-insight.pos-1 { top: -10px; left: -40px; }
+.floating-insight.pos-2 { top: 80px; right: -50px; }
+.floating-insight.pos-3 { bottom: 100px; left: -30px; }
+.floating-insight.pos-4 { bottom: 20px; right: -40px; }
+.floating-insight.pos-5 { top: 180px; left: -60px; }
 
 /* Dashboard Greeting */
 .dashboard-greeting h2 {
@@ -164,11 +235,41 @@
 
 /* Copilot Panel */
 .copilot-panel {
-  background: linear-gradient(to right, rgba(20, 20, 30, 0.7), rgba(40, 30, 60, 0.5));
+  background: radial-gradient(circle at top left, rgba(123, 63, 228, 0.1), transparent 50%),
+              radial-gradient(circle at bottom right, rgba(67, 97, 238, 0.05), transparent 50%),
+              var(--bg-panel);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-6);
+  gap: var(--space-6);
+  border: var(--border-glass);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.copilot-panel.flex-row {
+  flex-direction: row;
+}
+
+.copilot-info-area {
+  flex: 1;
+}
+
+.ai-chip {
+  display: inline-flex;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.ai-chip:hover {
+  background: rgba(123, 63, 228, 0.15);
+  border-color: rgba(123, 63, 228, 0.3);
+  color: var(--text-primary);
 }
 
 .copilot-header {
@@ -190,13 +291,24 @@
 .dropzone-area {
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-8);
+  padding: var(--space-6) var(--space-8);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.2);
-  min-width: 320px;
+  background: rgba(10, 10, 15, 0.4);
+  min-width: 340px;
+  transition: all var(--transition-normal);
+}
+
+.dropzone-area:hover {
+  border-color: var(--accent-primary);
+  background: rgba(123, 63, 228, 0.05);
+}
+
+.dropzone-icon {
+  font-size: 24px;
+  margin-bottom: var(--space-2);
 }
 
 /* Table container */
@@ -239,10 +351,21 @@
 
 .data-table tr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  transition: background var(--transition-fast);
+}
+
+.data-table tr.cursor-pointer {
+  cursor: pointer;
 }
 
 .data-table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.doc-action-menu {
+  background: var(--bg-surface);
+  border: var(--border-glass);
+  box-shadow: var(--shadow-lg);
 }
 
 .doc-name-cell {
@@ -259,10 +382,19 @@
   gap: var(--space-3);
   padding: var(--space-3);
   cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid transparent;
 }
 
 .quick-action-item:hover {
   background: var(--bg-panel-hover);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-action-item:hover .action-icon-bg {
+  box-shadow: 0 0 12px rgba(123, 63, 228, 0.4);
 }
 
 .action-icon-bg {

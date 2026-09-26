@@ -1,5 +1,5 @@
 import React from 'react';
-import { UploadDropzone } from './components/UploadDropzone';
+
 import { AiCopilotPanel } from './components/AiCopilotPanel';
 import { RecentDocuments } from './components/RecentDocuments';
 import { QuickActions } from './components/QuickActions';
@@ -10,9 +10,6 @@ import './Dashboard.css';
 export const Dashboard = () => {
   return (
     <div className="dashboard-container">
-      {/* Top Hero Section */}
-      <UploadDropzone />
-
       {/* Greeting */}
       <div className="dashboard-greeting">
         <h2>Good evening, Mr. Tripathi <span className="wave">👋</span></h2>
@@ -22,6 +19,8 @@ export const Dashboard = () => {
       {/* Main Grid */}
       <div className="dashboard-grid">
         <div className="dashboard-main-col">
+          <AiCopilotPanel />
+          
           {/* Stats Row */}
           <div className="stats-grid">
             <StatCard 
@@ -50,7 +49,6 @@ export const Dashboard = () => {
             />
           </div>
 
-          <AiCopilotPanel />
           <RecentDocuments />
         </div>
 

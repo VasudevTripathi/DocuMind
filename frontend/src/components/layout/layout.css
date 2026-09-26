@@ -278,14 +278,22 @@
 }
 
 /* Responsive Overrides */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  backdrop-filter: blur(4px);
+}
+
 @media (max-width: 768px) {
   .sidebar {
-    transform: translateX(-100%);
-  }
-  .sidebar.open {
-    transform: translateX(0);
+    /* Transform managed by framer-motion */
   }
   .main-wrapper {
     margin-left: 0 !important;
+  }
+  .navbar-left {
+    margin-right: var(--space-4);
   }
 }

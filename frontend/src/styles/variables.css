@@ -1,10 +1,10 @@
 :root {
   /* Colors - Base & Surfaces */
-  --bg-base: #0a0a0f;
-  --bg-surface: #12121a;
-  --bg-panel: rgba(20, 20, 30, 0.4);
-  --bg-panel-hover: rgba(30, 30, 45, 0.6);
-  --bg-overlay: rgba(10, 10, 15, 0.8);
+  --bg-base: #030305;
+  --bg-surface: #08080c;
+  --bg-panel: rgba(15, 15, 20, 0.4);
+  --bg-panel-hover: rgba(25, 25, 35, 0.6);
+  --bg-overlay: rgba(3, 3, 5, 0.8);
   
   /* Brand Colors */
   --accent-primary: #7b3fe4;
@@ -42,8 +42,8 @@
     0 8px 16px rgba(0, 0, 0, 0.3);
     
   /* Glass Effects */
-  --glass-blur: blur(16px);
-  --glass-bg: linear-gradient(145deg, rgba(30, 30, 45, 0.6), rgba(20, 20, 30, 0.3));
+  --glass-blur: blur(24px);
+  --glass-bg: linear-gradient(145deg, rgba(20, 20, 30, 0.5), rgba(10, 10, 15, 0.2));
 
   /* Radii */
   --radius-sm: 6px;

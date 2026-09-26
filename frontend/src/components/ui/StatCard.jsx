@@ -7,15 +7,13 @@ export const StatCard = ({ title, value, change, trend = 'up', icon, className }
     <div className={clsx('stat-card glass-panel', className)}>
       <div className="stat-card-icon">{icon}</div>
       <div className="stat-card-content">
-        <div className="stat-card-header">
-          <span className="stat-value">{value}</span>
-          {change && (
-            <span className={clsx('stat-change', trend === 'up' ? 'text-success' : 'text-danger')}>
-              {trend === 'up' ? '+' : ''}{change}
-            </span>
-          )}
-        </div>
-        <div className="stat-title text-secondary">{title}</div>
+        <span className="stat-value">{value}</span>
+        <span className="stat-title text-secondary">{title}</span>
+        {change && (
+          <span className={clsx('stat-change', trend === 'up' ? 'text-success' : 'text-danger')}>
+            {trend === 'up' && !change.startsWith('+') ? '+' : ''}{change}
+          </span>
+        )}
       </div>
     </div>
   );
