@@ -17,6 +17,8 @@ export const DocumentCard = ({ doc, onDeleteClick }) => {
         return <Badge variant="success" icon="✓">Analyzed</Badge>;
       case 'processing':
         return <Badge variant="warning" icon="⟳">Processing</Badge>;
+      case 'pending':
+        return <Badge variant="default" icon="⏳">Pending</Badge>;
       case 'failed':
         return <Badge variant="danger" icon="✕">Failed</Badge>;
       default:

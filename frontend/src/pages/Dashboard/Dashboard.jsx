@@ -12,7 +12,7 @@ export const Dashboard = () => {
 
   const totalDocs = documents.length;
   const analyzedDocs = documents.filter(d => (d.status || '').toLowerCase() === 'analyzed').length;
-  const processingDocs = documents.filter(d => (d.status || '').toLowerCase() === 'processing').length;
+  const processingDocs = documents.filter(d => ['processing', 'pending'].includes((d.status || '').toLowerCase())).length;
 
   return (
     <div className="dashboard-container">

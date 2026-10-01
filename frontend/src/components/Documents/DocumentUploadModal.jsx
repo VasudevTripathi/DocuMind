@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, FileText, Image as ImageIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { GlassPanel } from '../ui/GlassPanel';
 import { Button } from '../ui/Button';
 import { documentService } from '../../services/documentService';
 
@@ -12,14 +11,10 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
-  const uploadTimerRef = useRef(null);
 
   if (!isOpen) return null;
 
   const resetState = () => {
-    if (uploadTimerRef.current) {
-      clearInterval(uploadTimerRef.current);
-    }
     setSelectedFile(null);
     setValidationError('');
     setIsUploading(false);
@@ -93,31 +88,25 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
     if (!selectedFile) return;
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setValidationError('');
+    setUploadProgress(30);
 
-    // Simulate transfer progress (uploading data)
-    let progress = 10;
-    uploadTimerRef.current = setInterval(async () => {
-      progress += Math.floor(Math.random() * 25) + 15;
-      if (progress >= 100) {
-        clearInterval(uploadTimerRef.current);
-        setUploadProgress(100);
-
-        try {
-          const newDoc = documentService.createDocumentFromFile(selectedFile, category);
-          await onUploadSuccess(newDoc);
-          setTimeout(() => {
-            resetState();
-            onClose();
-          }, 350);
-        } catch (err) {
-          setValidationError('Failed to save document. Please try again.');
-          setIsUploading(false);
-        }
-      } else {
-        setUploadProgress(progress);
+    try {
+      setUploadProgress(70);
+      const newDoc = await documentService.uploadDocument(selectedFile, category);
+      setUploadProgress(100);
+      if (onUploadSuccess) {
+        await onUploadSuccess(newDoc);
       }
-    }, 120);
+      setTimeout(() => {
+        resetState();
+        onClose();
+      }, 400);
+    } catch (err) {
+      setValidationError(err.message || 'Failed to upload document. Please check your backend connection.');
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const getFileIcon = (fileName) => {
@@ -338,7 +327,7 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
           <div style={{ marginBottom: 'var(--space-5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--space-2)' }}>
               <span style={{ color: 'var(--text-secondary)' }}>
-                {uploadProgress < 100 ? 'Uploading document...' : 'Finalizing & queuing for processing...'}
+                {uploadProgress < 100 ? 'Uploading to server...' : 'Uploaded (Pending)'}
               </span>
               <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{uploadProgress}%</span>
             </div>

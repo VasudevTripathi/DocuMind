@@ -1,6 +1,4 @@
-import { INITIAL_DOCUMENTS } from '../data/initialDocuments';
-
-const STORAGE_KEY = 'documind_documents';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const CHANGE_EVENT = 'documind:documents-changed';
 
 const notifyChange = () => {
@@ -11,93 +9,173 @@ const notifyChange = () => {
 
 export const documentService = {
   /**
-   * Retrieves all documents from localStorage.
-   * If first time, seeds with INITIAL_DOCUMENTS.
+   * Retrieves documents from FastAPI backend.
+   * @param {Object} [params] - Optional query parameters: { search, type, status, category }
    * @returns {Promise<Array>} Array of document objects
    */
-  async getDocuments() {
+  async getDocuments(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.type && params.type !== 'all') query.append('type', params.type);
+    if (params.status && params.status !== 'all') query.append('status', params.status);
+    if (params.category && params.category !== 'all') query.append('category', params.category);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw === null) {
-        // First initialization
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DOCUMENTS));
-        return [...INITIAL_DOCUMENTS];
+      const response = await fetch(`${API_BASE}/api/documents${queryString}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch documents (HTTP ${response.status})`);
       }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+
+      const data = await response.json();
+      return Array.isArray(data.documents) ? data.documents : (Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Failed to read documents from localStorage:', err);
-      return [...INITIAL_DOCUMENTS];
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);
+      }
+      throw err;
     }
   },
 
   /**
-   * Retrieves a single document by ID.
+   * Retrieves a single document by ID from FastAPI backend.
    * @param {string} id 
-   * @returns {Promise<Object|null>}
-   */
-  async getDocumentById(id) {
-    const docs = await this.getDocuments();
-    return docs.find(doc => doc.id === id) || null;
-  },
-
-  /**
-   * Saves or updates a document.
-   * If doc has an existing id, updates it; otherwise appends it.
-   * @param {Object} document 
    * @returns {Promise<Object>}
    */
-  async saveDocument(document) {
-    const docs = await this.getDocuments();
-    const existingIndex = docs.findIndex(d => d.id === document.id);
+  async getDocumentById(id) {
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
 
-    let updatedDocs;
-    if (existingIndex >= 0) {
-      updatedDocs = [...docs];
-      updatedDocs[existingIndex] = {
-        ...updatedDocs[existingIndex],
-        ...document,
-        modifiedAt: new Date().toISOString()
-      };
-    } else {
-      updatedDocs = [document, ...docs];
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch document ${id}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);
+      }
+      throw err;
     }
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedDocs));
-    notifyChange();
-    return document;
   },
 
   /**
-   * Deletes a document by ID.
+   * Uploads a document file to FastAPI backend.
+   * @param {File} file 
+   * @param {string} [category='General']
+   * @returns {Promise<Object>} Created document
+   */
+  async uploadDocument(file, category = 'General') {
+    const validation = this.validateFile(file);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category || 'General');
+
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Upload failed with HTTP ${response.status}`);
+      }
+
+      const createdDoc = await response.json();
+      notifyChange();
+      return createdDoc;
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please ensure the backend is running on port 8000.');
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Stable saveDocument method that delegates to uploadDocument.
+   * Handles File instance or object with file.
+   * @param {File|Object} docOrFile 
+   * @param {string} [category]
+   * @returns {Promise<Object>}
+   */
+  async saveDocument(docOrFile, category = 'General') {
+    if (docOrFile instanceof File) {
+      return this.uploadDocument(docOrFile, category);
+    }
+    if (docOrFile && docOrFile.file instanceof File) {
+      return this.uploadDocument(docOrFile.file, docOrFile.category || category);
+    }
+    // If passed a mock/plain object with a file or already created, throw friendly instruction
+    throw new Error('A valid File must be provided for document upload.');
+  },
+
+  /**
+   * Deletes a document by ID via FastAPI backend.
    * @param {string} id 
    * @returns {Promise<boolean>}
    */
   async deleteDocument(id) {
-    const docs = await this.getDocuments();
-    const filtered = docs.filter(d => d.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    notifyChange();
-    return true;
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to delete document (HTTP ${response.status})`);
+      }
+
+      notifyChange();
+      return true;
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please ensure the backend is running on port 8000.');
+      }
+      throw err;
+    }
   },
 
   /**
-   * Clears all documents.
-   * @returns {Promise<void>}
+   * Returns direct download/stream URL for a document file.
+   * @param {string} id 
+   * @returns {string}
+   */
+  getDocumentFileUrl(id) {
+    return `${API_BASE}/api/documents/${encodeURIComponent(id)}/file`;
+  },
+
+  /**
+   * Clears documents (for development reset).
    */
   async clearDocuments() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    const docs = await this.getDocuments();
+    for (const doc of docs) {
+      await this.deleteDocument(doc.id).catch(() => {});
+    }
     notifyChange();
-  },
-
-  /**
-   * Resets documents back to initial seed data.
-   * @returns {Promise<Array>}
-   */
-  async resetToInitial() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DOCUMENTS));
-    notifyChange();
-    return [...INITIAL_DOCUMENTS];
   },
 
   /**
@@ -211,31 +289,7 @@ export const documentService = {
   },
 
   /**
-   * Constructs a standard Document object from a File instance.
-   * Note: Status is initialized to "processing". We do not fake AI results.
-   * @param {File} file 
-   * @param {string} [category='General']
-   * @returns {Object} Document model
-   */
-  createDocumentFromFile(file, category = 'General') {
-    const now = new Date().toISOString();
-    const type = this.getFileType(file.name);
-
-    return {
-      id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: file.name,
-      type,
-      size: this.formatFileSize(file.size),
-      sizeBytes: file.size,
-      uploadedAt: now,
-      modifiedAt: now,
-      status: 'processing',
-      category: category || 'General'
-    };
-  },
-
-  /**
-   * Subscribes to document changes (cross-component).
+   * Subscribes to document changes across components.
    * @param {Function} callback 
    * @returns {Function} unsubscribe function
    */
@@ -243,10 +297,8 @@ export const documentService = {
     if (typeof window === 'undefined') return () => {};
     const handler = () => callback();
     window.addEventListener(CHANGE_EVENT, handler);
-    window.addEventListener('storage', handler);
     return () => {
       window.removeEventListener(CHANGE_EVENT, handler);
-      window.removeEventListener('storage', handler);
     };
   }
 };

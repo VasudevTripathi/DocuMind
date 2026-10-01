@@ -158,8 +158,9 @@ export const Documents = () => {
               className="status-filter-select"
             >
               <option value="all">All Statuses</option>
-              <option value="analyzed">Analyzed</option>
+              <option value="pending">Pending</option>
               <option value="processing">Processing</option>
+              <option value="analyzed">Analyzed</option>
               <option value="failed">Failed</option>
             </select>
           </div>

@@ -81,8 +81,7 @@ export const AiCopilotPanel = () => {
     setUploadError('');
 
     try {
-      const newDoc = documentService.createDocumentFromFile(selectedFile);
-      await saveDocument(newDoc);
+      await saveDocument(selectedFile);
       setIsUploading(false);
       setUploadSuccess(true);
       setTimeout(() => {
@@ -90,7 +89,7 @@ export const AiCopilotPanel = () => {
       }, 2000);
     } catch (err) {
       setIsUploading(false);
-      setUploadError('Failed to upload document. Please try again.');
+      setUploadError(err.message || 'Failed to upload document. Please check backend connection.');
     }
   };
 
