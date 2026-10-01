@@ -1,23 +1,43 @@
 import React, { useRef, useState } from 'react';
 import { GlassPanel } from '../../../components/ui/GlassPanel';
-import { Bot, FileText, X } from 'lucide-react';
+import { Bot, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { useDocuments } from '../../../hooks/useDocuments';
+import { documentService } from '../../../services/documentService';
 
 export const AiCopilotPanel = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const { saveDocument } = useDocuments();
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
+  const processFile = (file) => {
+    setUploadError('');
+    setUploadSuccess(false);
+    if (!file) return;
+
+    const validation = documentService.validateFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.error);
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
+      processFile(file);
     }
   };
 
@@ -36,15 +56,41 @@ export const AiCopilotPanel = () => {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      setSelectedFile(file);
+      processFile(file);
     }
   };
 
   const handleRemoveFile = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     setSelectedFile(null);
+    setUploadError('');
+    setUploadSuccess(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmUpload = async (e) => {
+    e.stopPropagation();
+    if (!selectedFile) {
+      handleUploadClick();
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError('');
+
+    try {
+      const newDoc = documentService.createDocumentFromFile(selectedFile);
+      await saveDocument(newDoc);
+      setIsUploading(false);
+      setUploadSuccess(true);
+      setTimeout(() => {
+        handleRemoveFile();
+      }, 2000);
+    } catch (err) {
+      setIsUploading(false);
+      setUploadError('Failed to upload document. Please try again.');
     }
   };
 
@@ -74,9 +120,9 @@ export const AiCopilotPanel = () => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={handleUploadClick}
+        onClick={!selectedFile ? handleUploadClick : undefined}
         style={{
-          cursor: 'pointer',
+          cursor: selectedFile ? 'default' : 'pointer',
           borderColor: isDragging ? 'var(--accent-primary)' : undefined,
           background: isDragging ? 'rgba(123, 63, 228, 0.1)' : undefined,
           transition: 'all var(--transition-fast)'
@@ -92,6 +138,20 @@ export const AiCopilotPanel = () => {
         <div className="dropzone-icon mb-2 text-accent-secondary">↑</div>
         <p className="dropzone-text font-medium text-lg">Drop your document here</p>
         
+        {uploadError && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontSize: '11px', margin: '4px 0 10px', textAlign: 'center' }}>
+            <AlertCircle size={14} />
+            <span>{uploadError}</span>
+          </div>
+        )}
+
+        {uploadSuccess && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success)', fontSize: '11px', margin: '4px 0 10px' }}>
+            <CheckCircle2 size={14} />
+            <span>Document added to library!</span>
+          </div>
+        )}
+
         {selectedFile ? (
           <div 
             className="selected-file-state" 
@@ -113,7 +173,7 @@ export const AiCopilotPanel = () => {
               {selectedFile.name}
             </span>
             <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-              ({(selectedFile.size / 1024).toFixed(0)} KB)
+              ({documentService.formatFileSize(selectedFile.size)})
             </span>
             <button 
               type="button" 
@@ -136,17 +196,40 @@ export const AiCopilotPanel = () => {
           <p className="dropzone-subtext text-tertiary text-sm mb-4">PDF, DOCX, TXT, PPT, Images</p>
         )}
 
-        <Button 
-          variant="primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleUploadClick();
-          }}
-        >
-          {selectedFile ? 'Change Document' : 'Upload Document'}
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+          {selectedFile ? (
+            <>
+              <Button 
+                variant="secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUploadClick();
+                }}
+                disabled={isUploading}
+              >
+                Change
+              </Button>
+              <Button 
+                variant="primary"
+                onClick={handleConfirmUpload}
+                disabled={isUploading}
+              >
+                {isUploading ? 'Uploading...' : 'Upload & Process'}
+              </Button>
+            </>
+          ) : (
+            <Button 
+              variant="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUploadClick();
+              }}
+            >
+              Upload Document
+            </Button>
+          )}
+        </div>
       </div>
     </GlassPanel>
   );
 };
-

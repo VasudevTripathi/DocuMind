@@ -1,13 +1,19 @@
 import React from 'react';
-
 import { AiCopilotPanel } from './components/AiCopilotPanel';
 import { RecentDocuments } from './components/RecentDocuments';
 import { QuickActions } from './components/QuickActions';
 import { StatCard } from '../../components/ui/StatCard';
 import { FileText, HardDrive, Zap, BookOpen } from 'lucide-react';
+import { useDocuments } from '../../hooks/useDocuments';
 import './Dashboard.css';
 
 export const Dashboard = () => {
+  const { documents, isLoading } = useDocuments();
+
+  const totalDocs = documents.length;
+  const analyzedDocs = documents.filter(d => (d.status || '').toLowerCase() === 'analyzed').length;
+  const processingDocs = documents.filter(d => (d.status || '').toLowerCase() === 'processing').length;
+
   return (
     <div className="dashboard-container">
       {/* Greeting */}
@@ -25,27 +31,24 @@ export const Dashboard = () => {
           <div className="stats-grid">
             <StatCard 
               title="Documents" 
-              value="24" 
-              change="12%" 
+              value={isLoading ? '...' : totalDocs.toString()} 
               icon={<FileText size={24} />} 
             />
             <StatCard 
-              title="Total Words" 
-              value="186K" 
-              change="18%" 
-              icon={<HardDrive size={24} />} 
+              title="Analyzed" 
+              value={isLoading ? '...' : analyzedDocs.toString()} 
+              icon={<BookOpen size={24} />} 
             />
             <StatCard 
-              title="Chunks" 
-              value="82" 
-              change="5%" 
+              title="Processing" 
+              value={isLoading ? '...' : processingDocs.toString()} 
               icon={<Zap size={24} />} 
             />
             <StatCard 
-              title="Research Papers" 
-              value="12" 
-              change="33%" 
-              icon={<BookOpen size={24} />} 
+              title="Total Words" 
+              value="—" 
+              change="Pending backend" 
+              icon={<HardDrive size={24} />} 
             />
           </div>
 

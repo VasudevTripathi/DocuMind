@@ -57,6 +57,17 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -100,6 +111,11 @@
 .badge-primary {
   background: rgba(123, 63, 228, 0.15);
   color: var(--accent-primary);
+}
+
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .stat-card {

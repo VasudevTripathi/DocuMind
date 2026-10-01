@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { Dashboard } from './pages/Dashboard/Dashboard';
+import { Documents } from './pages/Documents/Documents';
 import { Landing } from './pages/Landing/Landing';
 import { Placeholder } from './pages/Placeholder';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,7 +17,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/documents" element={<Placeholder title="Documents" description="Your entire document library." />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/workspace/:id" element={<Placeholder title="Workspace" description="Analyze and extract insights from your document." />} />
             <Route path="/chat" element={<Placeholder title="AI Playground" description="Chat with your document knowledge base." />} />
             <Route path="/search" element={<Placeholder title="Semantic Search" description="Find exact matches and conceptual similarities." />} />
