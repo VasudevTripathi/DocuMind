@@ -168,6 +168,59 @@ export const documentService = {
   },
 
   /**
+   * Retrieves document analysis from FastAPI backend.
+   * @param {string} id 
+   * @returns {Promise<Object>}
+   */
+  async getDocumentAnalysis(id) {
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}/analysis`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch analysis for document ${id}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Manually triggers NLP document processing in background.
+   * @param {string} id 
+   * @returns {Promise<Object>}
+   */
+  async processDocument(id) {
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}/process`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to trigger processing for document ${id}`);
+      }
+
+      notifyChange();
+      return await response.json();
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);
+      }
+      throw err;
+    }
+  },
+
+  /**
    * Clears documents (for development reset).
    */
   async clearDocuments() {

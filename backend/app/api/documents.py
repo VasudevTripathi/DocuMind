@@ -1,26 +1,55 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, BackgroundTasks, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.document import DocumentResponse, DocumentListResponse, DocumentDeleteResponse
 from app.services.document_service import DocumentService
+from app.services.document_pipeline import process_document
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     category: Optional[str] = Form("General"),
     db: Session = Depends(get_db)
 ):
     """
     Accepts multipart file upload, validates format and size, stores file safely,
-    creates database record with initial status 'pending', and returns DocumentResponse.
+    creates database record with initial status 'pending', returns DocumentResponse immediately,
+    and queues NLP extraction, ML classification, and LLM analysis in the background.
     """
     document = await DocumentService.create_document(db=db, file=file, category=category)
+    # Trigger background NLP pipeline
+    background_tasks.add_task(process_document, document.id)
     return DocumentResponse.from_model(document)
+
+@router.post("/{document_id}/process")
+def trigger_document_processing(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually triggers or re-triggers the document analysis pipeline in the background.
+    Useful for development, manual testing, or retry of failed documents.
+    """
+    document = DocumentService.get_document_by_id(db=db, document_id=document_id)
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document with ID '{document_id}' not found."
+        )
+
+    background_tasks.add_task(process_document, document.id)
+    return {
+        "message": "Document processing initiated.",
+        "documentId": document_id,
+        "status": "processing"
+    }
 
 @router.get("", response_model=DocumentListResponse)
 def list_documents(
@@ -67,7 +96,8 @@ def delete_document(
     db: Session = Depends(get_db)
 ):
     """
-    Deletes the document database record and its physical uploaded file.
+    Deletes the document database record, related analysis/entities/findings,
+    and its physical uploaded file.
     """
     deleted = DocumentService.delete_document(db=db, document_id=document_id)
     if not deleted:

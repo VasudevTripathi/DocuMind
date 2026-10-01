@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.api.health import router as health_router
 from app.api.documents import router as documents_router
+from app.api.analysis import router as analysis_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +42,7 @@ app.add_middleware(
 # Register API routes
 app.include_router(health_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
+app.include_router(analysis_router, prefix="/api")
 
 @app.get("/")
 def root():

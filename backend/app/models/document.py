@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 def generate_doc_id():
@@ -20,6 +21,10 @@ class Document(Base):
     category = Column(String(100), nullable=False, default="General", index=True)
     uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     modified_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    analysis = relationship("DocumentAnalysis", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    entities = relationship("DocumentEntity", back_populates="document", cascade="all, delete-orphan")
+    findings = relationship("DocumentFinding", back_populates="document", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Document id={self.id} name='{self.name}' status='{self.status}'>"

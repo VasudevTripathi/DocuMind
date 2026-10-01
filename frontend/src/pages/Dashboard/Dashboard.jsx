@@ -3,7 +3,7 @@ import { AiCopilotPanel } from './components/AiCopilotPanel';
 import { RecentDocuments } from './components/RecentDocuments';
 import { QuickActions } from './components/QuickActions';
 import { StatCard } from '../../components/ui/StatCard';
-import { FileText, HardDrive, Zap, BookOpen } from 'lucide-react';
+import { FileText, Zap, BookOpen, AlertCircle } from 'lucide-react';
 import { useDocuments } from '../../hooks/useDocuments';
 import './Dashboard.css';
 
@@ -13,6 +13,7 @@ export const Dashboard = () => {
   const totalDocs = documents.length;
   const analyzedDocs = documents.filter(d => (d.status || '').toLowerCase() === 'analyzed').length;
   const processingDocs = documents.filter(d => ['processing', 'pending'].includes((d.status || '').toLowerCase())).length;
+  const failedDocs = documents.filter(d => (d.status || '').toLowerCase() === 'failed').length;
 
   return (
     <div className="dashboard-container">
@@ -30,7 +31,7 @@ export const Dashboard = () => {
           {/* Stats Row */}
           <div className="stats-grid">
             <StatCard 
-              title="Documents" 
+              title="Total Documents" 
               value={isLoading ? '...' : totalDocs.toString()} 
               icon={<FileText size={24} />} 
             />
@@ -45,10 +46,9 @@ export const Dashboard = () => {
               icon={<Zap size={24} />} 
             />
             <StatCard 
-              title="Total Words" 
-              value="—" 
-              change="Pending backend" 
-              icon={<HardDrive size={24} />} 
+              title="Failed" 
+              value={isLoading ? '...' : failedDocs.toString()} 
+              icon={<AlertCircle size={24} />} 
             />
           </div>
 

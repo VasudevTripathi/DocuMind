@@ -14,8 +14,22 @@ export const useDocuments = (params) => {
   } = useQuery({
     queryKey: ['documents', params],
     queryFn: () => documentService.getDocuments(params),
-    staleTime: 1000 * 30, // 30 seconds
-    retry: 1
+    staleTime: 1000 * 15,
+    retry: 1,
+    // Dynamically poll every 2s while any document is pending or processing
+    refetchInterval: (query) => {
+      const docs = query.state.data;
+      if (Array.isArray(docs)) {
+        const hasActiveJobs = docs.some(d => {
+          const st = (d.status || '').toLowerCase();
+          return st === 'pending' || st === 'processing';
+        });
+        if (hasActiveJobs) {
+          return 2000;
+        }
+      }
+      return false;
+    }
   });
 
   // Keep all components synchronized when document storage changes
@@ -55,6 +69,13 @@ export const useDocuments = (params) => {
     }
   });
 
+  const processMutation = useMutation({
+    mutationFn: (id) => documentService.processDocument(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    }
+  });
+
   const clearMutation = useMutation({
     mutationFn: () => documentService.clearDocuments(),
     onSuccess: () => {
@@ -71,8 +92,19 @@ export const useDocuments = (params) => {
     uploadDocument: (file, category) => uploadMutation.mutateAsync({ file, category }),
     saveDocument: saveMutation.mutateAsync,
     deleteDocument: deleteMutation.mutateAsync,
+    processDocument: processMutation.mutateAsync,
     clearDocuments: clearMutation.mutateAsync,
     isSaving: saveMutation.isPending || uploadMutation.isPending,
-    isDeleting: deleteMutation.isPending
+    isDeleting: deleteMutation.isPending,
+    isProcessing: processMutation.isPending
   };
+};
+
+export const useDocumentAnalysis = (documentId) => {
+  return useQuery({
+    queryKey: ['document-analysis', documentId],
+    queryFn: () => documentService.getDocumentAnalysis(documentId),
+    enabled: Boolean(documentId),
+    retry: 1
+  });
 };
