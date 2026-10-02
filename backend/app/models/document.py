@@ -25,6 +25,7 @@ class Document(Base):
     analysis = relationship("DocumentAnalysis", back_populates="document", uselist=False, cascade="all, delete-orphan")
     entities = relationship("DocumentEntity", back_populates="document", cascade="all, delete-orphan")
     findings = relationship("DocumentFinding", back_populates="document", cascade="all, delete-orphan")
+    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Document id={self.id} name='{self.name}' status='{self.status}'>"
