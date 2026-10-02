@@ -133,7 +133,7 @@ export const DocumentCard = ({ doc, onDeleteClick }) => {
             <ExternalLink size={14} />
           </button>
           <button
-            onClick={() => navigate('/chat')}
+            onClick={() => navigate(`/chat?documentId=${doc.id}`)}
             className="card-action-btn"
             title="Ask AI"
             style={{

@@ -353,7 +353,60 @@ No-Context Guard
       "text": "The dot products of the query with all keys are computed..."
     }
   ],
-  "document_id": null
-}
 ```
+
+---
+
+## Phase 7: Multi-Turn Document-Grounded Conversational Q&A
+
+Phase 7 evolves DocuMind from single-turn question answering into a stateful, multi-turn conversational intelligence layer. It maintains complete conversation history while strictly enforcing that factual answers originate only from authoritative retrieved document chunks.
+
+### Conversational Architecture:
+```
+USER MESSAGE (POST /api/conversations/{id}/messages)
+   │
+   ▼
+Conversation Lookup & Document Scope Validation
+   │
+   ▼
+Follow-Up Reference Resolution
+   ├── Retrieve using raw question
+   └── Contextual retrieval augmenting previous user query
+   │
+   ▼
+Vector Store (FAISS IndexFlatIP) + SQLite Chunks
+   │
+   ▼
+Relevance Filtering (> 0.05)
+   ├── 0 usable chunks ──► Immediate Fallback (LLM skipped, sources = [])
+   └── Usable chunks exist:
+          │
+          ▼
+       Assemble Grounded Context ([Source 1], [Source 2]...)
+          │
+          ▼
+       Select Bounded Recent History (last 6 turns)
+          │
+          ▼
+       LLM Answering (Strict RAG Prompt, history used only for reference resolution)
+          │
+          ▼
+       Persist User Message & Assistant Answer to SQLite
+          │
+          ▼
+       Return Answer + Verifiable Source Attribution
+```
+
+### Key Conversational Endpoints:
+- `POST /api/conversations`: Create conversation session (optionally scoped to a `document_id`).
+- `GET /api/conversations`: List active conversations (supports `?document_id=` filter).
+- `GET /api/conversations/{id}`: Retrieve conversation metadata and chronologically ordered messages.
+- `DELETE /api/conversations/{id}`: Delete conversation and cascaded messages.
+- `POST /api/conversations/{id}/messages`: Submit question or follow-up and receive grounded answer with source citations.
+
+### Anti-Hallucination & Continuity Rules:
+1. **Strict Context Grounding**: The LLM is instructed that facts must originate strictly from the retrieved document context.
+2. **Reference Continuity**: Prior conversation turns are used solely to resolve follow-up ambiguity (e.g., pronouns like "it", "that threshold") without being treated as factual source evidence.
+3. **No-Context Guard**: If vector retrieval finds no relevant chunks, the LLM is never invoked, preventing speculative fabrication.
+4. **Lifecycle Cascading**: Deleting a document automatically cascades and removes all associated conversations and messages.
 

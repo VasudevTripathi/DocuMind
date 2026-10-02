@@ -272,6 +272,74 @@ class LLMService:
             print(f"[LLMService] OpenAI Q&A request failed ({e}). Employing fallback extraction.")
             return self._heuristic_qa_fallback(question, context)
 
+    def answer_conversational_question(
+        self,
+        question: str,
+        context: str,
+        history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """
+        Generates a factual, grounded answer to a multi-turn conversation question
+        using strictly the retrieved document context. Conversation history is passed
+        strictly for reference resolution (e.g., pronouns), and is explicitly not
+        treated as primary evidence.
+        """
+        if not context or not context.strip():
+            return "The answer could not be found in the provided documents."
+
+        if not self.api_key:
+            return self._heuristic_qa_fallback(question, context)
+
+        try:
+            client = self.client
+            if not client:
+                return self._heuristic_qa_fallback(question, context)
+
+            system_prompt = (
+                "You are an assistant for question-answering tasks based strictly on provided document excerpts.\n"
+                "Rules:\n"
+                "1. Answer using ONLY the supplied document context.\n"
+                "2. Conversation history is provided solely to resolve references (such as pronouns, abbreviations, or follow-up topics). "
+                "Do NOT treat previous conversation turns as authoritative factual evidence; all facts must come from the retrieved document context.\n"
+                "3. Do not fabricate, assume, or extrapolate facts not directly supported by the context.\n"
+                "4. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
+                "'The answer could not be found in the provided documents.'\n"
+                "5. Do not use outside knowledge or training data to fill in missing information.\n"
+                "6. Keep the answer concise, direct, and factual.\n"
+                "7. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts."
+            )
+
+            messages = [{"role": "system", "content": system_prompt}]
+
+            # Add bounded recent history if provided (up to last 6 messages)
+            if history:
+                for h in history[-6:]:
+                    r = h.get("role")
+                    c = h.get("content")
+                    if r in ("user", "assistant") and c:
+                        messages.append({"role": r, "content": c})
+
+            user_prompt = (
+                f"QUESTION:\n{question}\n\n"
+                f"RETRIEVED DOCUMENT CONTEXT:\n{context}\n\n"
+                "Based strictly on the retrieved document context above, provide a grounded answer to the question."
+            )
+            messages.append({"role": "user", "content": user_prompt})
+
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=500
+            )
+
+            answer = response.choices[0].message.content or ""
+            return answer.strip() or "The answer could not be found in the provided documents."
+
+        except Exception as e:
+            print(f"[LLMService] OpenAI Conversational Q&A failed ({e}). Employing fallback extraction.")
+            return self._heuristic_qa_fallback(question, context)
+
     def _heuristic_qa_fallback(self, question: str, context: str) -> str:
         """
         Deterministic, rule-based extractive answering when OpenAI API is unavailable.

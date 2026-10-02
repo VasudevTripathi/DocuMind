@@ -163,7 +163,7 @@ export const DocumentRow = ({ doc, onDeleteClick }) => {
               className="doc-menu-item"
               onClick={() => {
                 setMenuOpen(false);
-                navigate('/chat');
+                navigate(`/chat?documentId=${doc.id}`);
               }}
               style={{
                 display: 'flex',

@@ -108,18 +108,21 @@ class RAGService:
         )
 
         # 5. Format sources
-        sources = [
-            {
-                "document_id": c["document_id"],
-                "document_name": c.get("document_name"),
-                "chunk_id": c["chunk_id"],
-                "chunk_index": c["chunk_index"],
-                "page_number": c.get("page_number"),
-                "score": c.get("score") or c.get("similarity_score", 0.0),
-                "text": c.get("text")
-            }
-            for c in usable_chunks
-        ]
+        if answer.strip() == NO_CONTEXT_FALLBACK:
+            sources = []
+        else:
+            sources = [
+                {
+                    "document_id": c["document_id"],
+                    "document_name": c.get("document_name"),
+                    "chunk_id": c["chunk_id"],
+                    "chunk_index": c["chunk_index"],
+                    "page_number": c.get("page_number"),
+                    "score": c.get("score") or c.get("similarity_score", 0.0),
+                    "text": c.get("text")
+                }
+                for c in usable_chunks
+            ]
 
         return {
             "query": cleaned_query,
