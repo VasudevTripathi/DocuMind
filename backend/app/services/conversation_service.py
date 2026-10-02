@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.document import Document
 from app.models.conversation import Conversation, ConversationMessage
 from app.services.retrieval_service import retrieval_service, RetrievalService, DocumentNotFoundError
@@ -147,13 +148,19 @@ class ConversationService:
                 if cid not in merged_map or score > (merged_map[cid].get("score") or merged_map[cid].get("similarity_score", 0.0)):
                     merged_map[cid] = res
             combined = list(merged_map.values())
-            combined.sort(key=lambda x: x.get("score") or x.get("similarity_score", 0.0), reverse=True)
+            combined.sort(
+                key=lambda x: (
+                    -float(x.get("rerank_score", x.get("score", 0.0))),
+                    -float(x.get("semantic_score", x.get("similarity_score", 0.0))),
+                    x.get("chunk_index", 0)
+                )
+            )
             search_results = combined[:top_k]
 
         # Filter chunks with meaningful semantic relevance
         usable_chunks = [
             c for c in search_results
-            if (c.get("score") or c.get("similarity_score") or 0.0) > 0.05
+            if (c.get("score") or c.get("similarity_score") or 0.0) >= settings.RAG_MIN_SIMILARITY
         ]
 
         # 1. Persist user message

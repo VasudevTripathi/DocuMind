@@ -365,12 +365,14 @@ class LLMService:
         scored_sentences = []
         for s in sentences:
             s_clean = s.strip()
+            # Strip Content: label prefix if present
+            s_clean = re.sub(r"^Content:\s*", "", s_clean).strip()
             if (
                 len(s_clean) < 15
                 or s_clean.startswith("[Source")
                 or s_clean.startswith("Document:")
                 or s_clean.startswith("Chunk")
-                or s_clean.startswith("Content:")
+                or s_clean.startswith("Relevance Score:")
             ):
                 continue
             s_lower = s_clean.lower()
