@@ -11,6 +11,9 @@ from app.services.document_service import DocumentService
 from app.services.document_parser import parse_document
 from app.services.text_processor import clean_text, count_words
 from app.services.chunker import chunk_document
+from app.services.chunk_service import ChunkService
+from app.services.embedding_service import embedding_service
+from app.services.vector_store import vector_store
 from app.services.llm_service import llm_service
 from app.ml.predictor import predict_category
 
@@ -18,21 +21,24 @@ logger = logging.getLogger("documind.pipeline")
 
 def process_document(document_id: str, db: Optional[Session] = None) -> bool:
     """
-    Executes the end-to-end NLP document intelligence pipeline:
+    Executes the end-to-end NLP document intelligence and RAG indexing pipeline:
     1. Fetch document from DB
     2. Set status = 'processing'
     3. Parse document file
-    4. Clean text
+    4. Clean & normalize text
     5. Calculate word count
-    6. Chunk text
-    7. Run local ML classifier (TF-IDF + Logistic Regression)
-    8. Send text to LLM service for summary, findings, and entities
-    9. Validate LLM response
-    10. Persist analysis, findings, and entities (idempotent; replaces previous analysis if reprocessed)
-    11. Update document status = 'analyzed'
-    12. Commit transaction
+    6. Generate deterministic chunks
+    7. Persist chunks in SQLite
+    8. Generate local embeddings
+    9. Store vectors in FAISS
+    10. Run local ML classifier (TF-IDF + Logistic Regression)
+    11. Send text to LLM service for summary, findings, and entities
+    12. Persist analysis, findings, and entities (idempotent replacement)
+    13. Set status = 'analyzed'
+    14. Commit transaction
 
-    If any major step fails, sets status = 'failed' to prevent documents from being stuck in processing.
+    If any fatal step fails, sets status = 'failed' and cleans up any partial/stale
+    chunks and vectors for this document.
     """
     close_session_at_end = False
     if db is None:
@@ -67,10 +73,22 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
         words = count_words(cleaned_text)
 
         # 6. Chunk text
-        chunks = chunk_document(doc.id, parsed_data)
-        logger.info(f"[Pipeline] Generated {len(chunks)} chunks for document {doc.id}.")
+        raw_chunks = chunk_document(doc.id, parsed_data)
+        logger.info(f"[Pipeline] Generated {len(raw_chunks)} chunks for document {doc.id}.")
 
-        # 7. Run local ML classifier
+        # 7. Persist chunks in SQLite (idempotently replaces previous chunks if reprocessed)
+        persisted_chunks = ChunkService.replace_chunks(db, doc.id, raw_chunks)
+
+        # 8. Generate local embeddings
+        chunk_texts = [c.text for c in persisted_chunks]
+        embeddings = embedding_service.embed_chunks(chunk_texts)
+
+        # 9. Update FAISS vector store
+        chunk_ids = [c.id for c in persisted_chunks]
+        vector_store.add_document_chunks(doc.id, chunk_ids, embeddings)
+        logger.info(f"[Pipeline] Indexed {len(chunk_ids)} chunk vectors in FAISS for document {doc.id}.")
+
+        # 10. Run local ML classifier
         ml_result = predict_category(cleaned_text)
         predicted_category = ml_result.get("category", "General")
         confidence = ml_result.get("confidence", 0.0)
@@ -78,10 +96,10 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
         # Update document's category to the ML prediction
         doc.category = predicted_category
 
-        # 8 & 9. Send to LLM for summary, key findings, and entity extraction
+        # 11. Send to LLM for summary, key findings, and entity extraction
         llm_result = llm_service.analyze_document(cleaned_text)
 
-        # 10. Clean up any existing analysis records for this document to prevent duplicates
+        # 12. Clean up any existing analysis records for this document to prevent duplicates
         if doc.analysis:
             db.delete(doc.analysis)
         db.query(DocumentFinding).filter(DocumentFinding.document_id == doc.id).delete()
@@ -98,7 +116,7 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
         )
         db.add(analysis_record)
 
-        # 11. Save findings
+        # Save findings
         for f in llm_result.get("key_findings", []):
             finding_record = DocumentFinding(
                 document_id=doc.id,
@@ -107,7 +125,7 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
             )
             db.add(finding_record)
 
-        # 12. Save entities
+        # Save entities
         for e in llm_result.get("entities", []):
             entity_record = DocumentEntity(
                 document_id=doc.id,
@@ -126,15 +144,24 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
     except Exception as e:
         logger.error(f"[Pipeline] Processing failed for document '{document_id}': {e}", exc_info=True)
         db.rollback()
-        # Mark as failed in DB
+
+        # Cleanup any partial vector store entries
+        try:
+            vector_store.remove_document(document_id)
+        except Exception as ve_err:
+            logger.error(f"[Pipeline] Failed to clean up vector store on error: {ve_err}")
+
+        # Mark as failed in DB and cleanup partial chunks
         try:
             failed_doc = db.query(Document).filter(Document.id == document_id).first()
             if failed_doc:
+                ChunkService.delete_chunks_by_document(db, document_id)
                 failed_doc.status = "failed"
                 db.commit()
                 logger.info(f"[Pipeline] Document {document_id} transitioned to FAILED.")
         except Exception as inner_err:
             logger.error(f"[Pipeline] Failed to set status to 'failed': {inner_err}")
+            db.rollback()
         return False
 
     finally:

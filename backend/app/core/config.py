@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     OPENAI_API_KEY: str | None = None
     LLM_MODEL: str = "gpt-4o-mini"
+    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    VECTOR_STORE_DIR: str = "./data/vector_store"
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(BACKEND_DIR, ".env"),
@@ -23,6 +25,15 @@ class Settings(BaseSettings):
     def resolved_upload_dir(self) -> Path:
         """Resolve upload directory to an absolute Path."""
         path = Path(self.UPLOAD_DIR)
+        if not path.is_absolute():
+            path = (BACKEND_DIR / path).resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def resolved_vector_store_dir(self) -> Path:
+        """Resolve vector store directory to an absolute Path."""
+        path = Path(self.VECTOR_STORE_DIR)
         if not path.is_absolute():
             path = (BACKEND_DIR / path).resolve()
         path.mkdir(parents=True, exist_ok=True)

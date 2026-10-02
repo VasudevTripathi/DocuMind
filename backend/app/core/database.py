@@ -22,5 +22,5 @@ def get_db():
 def init_db():
     """Initialize database tables."""
     # Import models here so that Base knows about them before create_all
-    import app.models.document  # noqa: F401
+    import app.models  # noqa: F401
     Base.metadata.create_all(bind=engine)

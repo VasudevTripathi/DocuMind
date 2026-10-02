@@ -1,46 +1,173 @@
 # DocuMind AI
 
-Intelligent document workspace with real-time library management, FastAPI backend, SQLite persistence, local machine-learning document classification, and OpenAI semantic intelligence.
+Intelligent document workspace with real-time library management, FastAPI backend, SQLite persistence, local machine-learning document classification, local FAISS vector retrieval (RAG infrastructure), and OpenAI semantic intelligence.
 
 ---
 
-## Architecture Overview
+## Two AI Layers Architecture (Hybrid Local + External)
 
-```
-React / Vite Frontend (Port 5173)
-        │
-        ▼ HTTP REST / Multi-part Upload
-FastAPI Backend (Port 8000)
-  ├── Document Parser (PDF, DOCX, TXT)
-  ├── Text Processor & Normalizer
-  ├── Deterministic Overlapping Chunker
-  ├── Local ML Classifier (TF-IDF + Logistic Regression)
-  ├── LLM Service (OpenAI GPT-4o-mini with fallback)
-  └── SQLite Database (SQLAlchemy) + Local Disk Storage
-```
+DocuMind AI deliberately decouples local retrieval and classification from external generation models. **The system is not fully offline**, but local intelligence handles data indexing and retrieval:
+
+### 1. LOCAL AI & RETRIEVAL (Zero API dependencies, runs fully on-device)
+- **Document Classification**: TF-IDF + Logistic Regression (7 categories, sub-millisecond inference).
+- **Semantic Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors, normalized).
+- **Vector Retrieval**: Local FAISS (`IndexFlatIP` with cosine similarity semantics) with local JSON position mapping.
+
+### 2. EXTERNAL AI (Cloud API)
+- **Semantic Analysis**: OpenAI `gpt-4o-mini` (used strictly for executive summary, key findings extraction, and named entity recognition in Phase 4).
+- **IMPORTANT**: **OpenAI is NOT used for retrieval or embeddings.** Retrieval runs 100% locally via sentence-transformers and FAISS.
 
 ---
 
-## Processing Lifecycle
+## Phase 5 Architecture: End-to-End Pipeline
 
 ```
-UPLOAD
-  ↓
-PENDING (HTTP 201 immediate response to client)
-  ↓
-FastAPI BackgroundTask triggered
-  ↓
-PROCESSING
-  ├── Text Extraction (pypdf, python-docx, text decoders)
-  ├── Text Normalization & Cleaning
-  ├── Word Count Calculation
-  ├── Document Chunking (800–1200 words with overlap)
-  ├── Local ML Category Classification
-  ├── LLM Semantic Analysis (Summary, Key Findings, Entities)
-  └── Persist Analysis, Findings, and Entities
-  ↓
-ANALYZED (or FAILED if parsing/extraction encounters fatal errors)
+                ┌────────────────────────┐
+                │   React / Vite (UI)    │
+                └───────────┬────────────┘
+                            │ HTTP REST / Upload / Search
+                ┌───────────▼────────────┐
+                │      FastAPI API       │
+                └───────────┬────────────┘
+                            │
+                ┌───────────▼────────────┐
+                │   Document Pipeline    │
+                └───────────┬────────────┘
+                            │
+    ┌───────────────────────┼────────────────────────┐
+    ▼                       ▼                        ▼
+Parser                   Chunker                 Classifier
+(PDF, DOCX, TXT)     (Deterministic)         (TF-IDF + LogReg)
+    │                       │
+    │                       ▼
+    │                 Chunk Service
+    │              (Persist in SQLite)
+    │                       │
+    │                       ▼
+    │               Embedding Service
+    │             (sentence-transformers)
+    │                       │
+    │                       ▼
+    │                  FAISS Store
+    │           (IndexFlatIP + metadata)
+    │                       │
+    │                       ▼
+    │               Retrieval Service
+    │            (POST /api/search RAG)
+    │
+    ▼
+Semantic Analysis
+(OpenAI gpt-4o-mini)
 ```
+
+### Ingestion Lifecycle:
+1. **Upload** → Status `pending` (HTTP 201 immediate response to client)
+2. **Background Task** triggered → Status `processing`
+3. **Document Parsing** (PDF, DOCX, TXT)
+4. **Text Normalization & Cleaning**
+5. **Word Count Calculation**
+6. **Deterministic Chunking** (800–1200 words with 150-word overlap)
+7. **Chunk Persistence** (Stored in SQLite `document_chunks` table)
+8. **Local Embedding Generation** (Batch encoding with `all-MiniLM-L6-v2`, L2 normalized)
+9. **FAISS Vector Indexing** (Stored in `backend/data/vector_store/index.faiss` + `metadata.json`)
+10. **Local ML Classification** (Predicts category & confidence)
+11. **OpenAI Semantic Analysis** (Summary, key findings, entities; fallback if key missing)
+12. **Status → `analyzed`** (or `failed` with complete rollback/cleanup if fatal error occurs)
+
+---
+
+## RAG Infrastructure Components
+
+### 1. Document Chunk Persistence (SQLite)
+Chunks are stored in the SQLite relational database as `document_chunks`:
+- `id`: Unique chunk identifier (`chk-...`)
+- `document_id`: Foreign key referencing `documents.id` (`ON DELETE CASCADE`)
+- `chunk_index`: Preserves sequential chunk order (enforced with `uq_document_chunk_index`)
+- `text`: Chunk text content
+- `page_number`: Inferred page number when available
+- `word_count`: Exact word count of the chunk
+- `created_at`: UTC timestamp
+
+SQLite remains the **authoritative source of truth**. FAISS serves strictly as an acceleration index.
+
+### 2. Local Embedding Model
+- **Model**: `sentence-transformers/all-MiniLM-L6-v2`
+- **Dimensionality**: 384 dimensions
+- **Normalization**: Every embedding is L2 unit-normalized, enabling inner-product calculation ($A \cdot B$) to equal cosine similarity.
+- **Local execution**: Runs entirely within Python on CPU or GPU without calling external APIs.
+- **Lazy loading**: Model is loaded into memory on first use and cached as a singleton.
+
+### 3. FAISS Vector Store Architecture
+- **Index Type**: `faiss.IndexFlatIP` (Exact inner product / cosine similarity)
+- **Storage Location**:
+  - `backend/data/vector_store/index.faiss`: Serialized binary index.
+  - `backend/data/vector_store/metadata.json`: Position-to-chunk mapping (`[{"chunk_id": "...", "document_id": "..."}]`).
+- **Idempotency**: Reprocessing a document replaces previous chunks and removes previous vectors before adding new ones.
+- **Scoping**: Supports document-scoped search using FAISS `IDSelectorArray` and `SearchParameters`.
+- **Clean Deletion**: When a document is deleted via `DELETE /api/documents/{id}`, its database records, SQLite chunks, FAISS vectors, and physical upload files are all completely purged.
+
+---
+
+## Retrieval Flow & Search API
+
+### Retrieval Flow:
+```
+User Query ("What is the architecture?")
+   │
+   ▼
+Embedding Service (all-MiniLM-L6-v2)
+   │
+   ▼
+Normalized Query Vector (384-d float32)
+   │
+   ▼
+FAISS IndexFlatIP Similarity Search (Optional document filter)
+   │
+   ▼
+Top-K Matching Chunk IDs + Similarity Scores
+   │
+   ▼
+SQLite DocumentChunk & Document Lookup
+   │
+   ▼
+Structured Semantic Search Response
+```
+
+### Search Endpoint:
+**POST** `/api/search`
+
+#### Request Body:
+```json
+{
+  "query": "What mechanism replaces recurrence?",
+  "top_k": 5,
+  "document_id": null
+}
+```
+
+#### Response Body:
+```json
+{
+  "query": "What mechanism replaces recurrence?",
+  "total_results": 1,
+  "results": [
+    {
+      "chunk_id": "chk-a1b2c3d4e5f6",
+      "document_id": "doc-7a8b9c0d1e2f",
+      "document_name": "Attention_Is_All_You_Need.pdf",
+      "chunk_index": 2,
+      "page_number": 4,
+      "text": "The Transformer is the first transduction model relying entirely on self-attention...",
+      "similarity_score": 0.8245
+    }
+  ]
+}
+```
+
+#### Validation:
+- `query`: Required, non-empty.
+- `top_k`: Integer between 1 and 50.
+- `document_id`: Optional. If specified, must exist in SQLite or returns `404 Not Found`.
 
 ---
 
@@ -57,57 +184,16 @@ The system includes a genuinely trained, local machine learning model for **Docu
 6. **Financial**: Earnings statements, balance sheets, cash flow, EBITDA, audits.
 7. **General**: Meeting notes, reminders, itineraries, general announcements.
 
-### Why TF-IDF + Logistic Regression?
-- **Lightweight & Fast**: Sub-millisecond inference time without GPU or heavy runtime overhead.
-- **Interpretable**: Direct feature coefficients allow complete inspection of token weights per category.
-- **Self-Contained**: Can be trained locally in seconds on modest hardware with full reproducibility.
-- **Complements the LLM**: Handles structural taxonomy and classification locally without recurring API costs or latency.
-
 ### Training Instructions
-The training script is decoupled from server startup and can be run independently:
-
 ```bash
 cd backend
-# Activate virtual environment
 source .venv/bin/activate
-# Run training pipeline
 python -m app.ml.train
 ```
 
-The script:
-1. Loads the curated starter dataset from `backend/app/ml/dataset/documents.csv` (42 balanced samples across 7 classes).
-2. Performs a stratified train/test split (`random_state=42`, `test_size=0.25`).
-3. Fits a `TfidfVectorizer` (unigrams + bigrams, sublinear TF scaling).
-4. Trains a `LogisticRegression` classifier (`C=1.0`, `max_iter=1000`).
-5. Evaluates on held-out test data and reports honest evaluation metrics.
-6. Trains the final classifier across the dataset and serializes artifacts to `backend/app/ml/artifacts/`:
-   - `tfidf_vectorizer.joblib`
-   - `document_classifier.joblib`
-
-### Model Evaluation (Held-Out Test Set)
-- **Accuracy**: 72.73%
-- **Weighted Precision**: 71.21%
-- **Weighted Recall**: 72.73%
-- **Weighted F1-Score**: 68.18%
-
-> **Note on Dataset**: The included `documents.csv` is a curated starter dataset designed for transparency, fast local reproducibility, and viva explanation. Production deployments would scale this training corpus to thousands of domain-specific documents.
-
----
-
-## OpenAI Semantic Intelligence
-
-### Why OpenAI?
-While deterministic classification is handled by the local ML model, open-ended tasks such as:
-- Executive summary generation
-- Key takeaway and finding extraction (with priority assignment)
-- Contextual named entity recognition (people, organizations, concepts, locations)
-are significantly better suited to a general-purpose language model.
-
-### Cost Control & Budget Protection
-To keep API usage minimal and budget-friendly:
-- Document text sent to the LLM is capped at a maximum of **2,500 words** using representative sampling (introduction, middle context, and conclusion).
-- Full chunk sets are generated and retained for future retrieval/RAG systems without incurring LLM charges during initial ingestion.
-- If `OPENAI_API_KEY` is not provided or API calls fail, the system employs a robust rule-based fallback extractor so document processing never stalls.
+Artifacts are serialized to `backend/app/ml/artifacts/`:
+- `tfidf_vectorizer.joblib`
+- `document_classifier.joblib`
 
 ---
 
@@ -121,6 +207,8 @@ To keep API usage minimal and budget-friendly:
 | `UPLOAD_DIR` | Physical directory for stored uploads | `./data/uploads` |
 | `MAX_UPLOAD_SIZE_MB`| Maximum allowable upload size | `50` |
 | `FRONTEND_URL` | Allowed frontend origin for CORS | `http://localhost:5173` |
+| `EMBEDDING_MODEL` | Local sentence-transformer model name | `sentence-transformers/all-MiniLM-L6-v2` |
+| `VECTOR_STORE_DIR` | Directory for FAISS index & metadata | `./data/vector_store` |
 | `OPENAI_API_KEY` | OpenAI API key for semantic analysis | Optional (falls back to heuristic extraction) |
 | `LLM_MODEL` | OpenAI chat completion model | `gpt-4o-mini` |
 
@@ -131,6 +219,19 @@ To keep API usage minimal and budget-friendly:
 
 ---
 
+## Running Backend Tests
+
+Backend tests verify chunk persistence, local embedding generation, vector indexing, semantic search, document scoping, idempotency, and document deletion.
+
+```bash
+# From repository root or backend directory:
+backend/.venv/bin/pytest -q
+```
+
+All 14 tests run in an isolated in-memory test environment.
+
+---
+
 ## Getting Started
 
 ### 1. Backend Development
@@ -138,10 +239,8 @@ To keep API usage minimal and budget-friendly:
 ```bash
 cd backend
 
-# Create virtual environment
+# Create & activate virtual environment
 python3 -m venv .venv
-
-# Activate virtual environment
 source .venv/bin/activate
 
 # Install dependencies
@@ -168,9 +267,10 @@ npm install
 
 # Start Vite dev server
 npm run dev
-```
 
-The frontend will run at `http://localhost:5173`.
+# Build for production
+npm run build
+```
 
 ---
 
@@ -179,10 +279,11 @@ The frontend will run at `http://localhost:5173`.
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/health` | Service health status |
-| `POST` | `/api/documents/upload` | Multipart file upload (starts background processing) |
-| `POST` | `/api/documents/{id}/process` | Manually triggers/retries document analysis |
+| `POST` | `/api/documents/upload` | Multipart file upload (starts background chunking, indexing, and analysis) |
+| `POST` | `/api/documents/{id}/process` | Idempotently re-runs processing pipeline (regenerates chunks, embeddings, vectors, and analysis) |
 | `GET` | `/api/documents` | List documents (supports `search`, `type`, `status`, `category`) |
 | `GET` | `/api/documents/{id}` | Retrieve document metadata |
 | `GET` | `/api/documents/{id}/analysis` | Retrieve structured analysis (summary, findings, entities) |
 | `GET` | `/api/documents/{id}/file` | Stream physical document file |
-| `DELETE` | `/api/documents/{id}` | Delete database record and physical disk file |
+| `DELETE` | `/api/documents/{id}` | Purges DB record, SQLite chunks, FAISS vectors, and physical disk file |
+| `POST` | `/api/search` | Local semantic search across document chunks with optional document scoping |

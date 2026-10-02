@@ -47,7 +47,13 @@ backend/data/uploads/*
 !backend/data/uploads/.gitkeep
 backend/data/db/*
 !backend/data/db/.gitkeep
+backend/data/vector_store/*
+!backend/data/vector_store/.gitkeep
 data/uploads/*
 !data/uploads/.gitkeep
 data/db/*
 !data/db/.gitkeep
+data/vector_store/*
+!data/vector_store/.gitkeep
+*.faiss
+

@@ -10,6 +10,8 @@ from sqlalchemy import or_
 
 from app.core.config import settings
 from app.models.document import Document
+from app.services.chunk_service import ChunkService
+from app.services.vector_store import vector_store
 
 ALLOWED_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".txt",
@@ -176,15 +178,32 @@ class DocumentService:
 
     @staticmethod
     def delete_document(db: Session, document_id: str) -> bool:
-        """Deletes DB record and physical uploaded file."""
+        """
+        Deletes document and all associated resources:
+        1. Vectors in FAISS
+        2. Chunks in SQLite
+        3. Physical file on disk
+        4. DB record and cascaded entities, findings, and analysis
+        """
         doc = db.query(Document).filter(Document.id == document_id).first()
         if not doc:
             return False
 
-        # Attempt to delete physical file
+        # 1. Remove vectors from FAISS index
+        try:
+            vector_store.remove_document(document_id)
+        except Exception as e:
+            print(f"Warning: Failed to remove FAISS vectors for document {document_id}: {e}")
+
+        # 2. Delete chunks from SQLite
+        try:
+            ChunkService.delete_chunks_by_document(db, document_id)
+        except Exception as e:
+            print(f"Warning: Failed to delete chunks for document {document_id}: {e}")
+
+        # 3. Attempt to delete physical file
         try:
             upload_dir = settings.resolved_upload_dir
-            # Look up file path
             file_name = os.path.basename(doc.file_path)
             full_path = (upload_dir / file_name).resolve()
             if full_path.exists() and full_path.is_file():
@@ -193,6 +212,7 @@ class DocumentService:
             # Log warning, proceed with DB deletion
             print(f"Warning: Failed to delete physical file {doc.file_path}: {e}")
 
+        # 4. Delete document record (cascading deletes analysis, entities, findings)
         db.delete(doc)
         db.commit()
         return True
