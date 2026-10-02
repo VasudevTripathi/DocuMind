@@ -287,3 +287,73 @@ npm run build
 | `GET` | `/api/documents/{id}/file` | Stream physical document file |
 | `DELETE` | `/api/documents/{id}` | Purges DB record, SQLite chunks, FAISS vectors, and physical disk file |
 | `POST` | `/api/search` | Local semantic search across document chunks with optional document scoping |
+| `POST` | `/api/ask` | Grounded document Q&A: retrieves top-k chunks, formats context, and returns cited answer with sources |
+
+---
+
+## Phase 6: Grounded Document Q&A Answering (`POST /api/ask`)
+
+Phase 6 introduces document-grounded question answering built directly on top of the local Phase 5 retrieval layer:
+
+```
+User Question ("What does the document say about self-attention?")
+   │
+   ▼
+Query Embedding (all-MiniLM-L6-v2)
+   │
+   ▼
+FAISS Similarity Search (Optional document filter)
+   │
+   ▼
+Top-K Relevant Chunks from SQLite
+   │
+   ▼
+No-Context Guard
+   ├── If 0 chunks retrieved ──► Immediate fallback ("The answer could not be found in the provided documents.")
+   └── If chunks retrieved:
+          │
+          ▼
+       Grounded Context Assembly ([Source 1], [Source 2] with doc name, chunk ID, relevance score)
+          │
+          ▼
+       LLM Answering (Strict Grounding Prompt, temperature 0.1)
+          │
+          ▼
+       Grounded Answer + Verifiable Source Attribution
+```
+
+### Key Behaviors:
+- **Strict Grounding**: The LLM is instructed to answer strictly using the provided document excerpts and cite sources (`[Source 1]`, etc.). Outside knowledge and hallucinated facts are prohibited.
+- **No-Hallucination Guard**: If retrieval returns no relevant chunks, the LLM is never called. A controlled fallback message is returned directly.
+- **Source Attribution**: Every response includes verifiable source chunk citations with `document_id`, `document_name`, `chunk_id`, `chunk_index`, and `score`.
+- **Document Scoping**: Optional `document_id` parameter confines question answering strictly to a specific document.
+
+#### Q&A API Request (`POST /api/ask`):
+```json
+{
+  "query": "How is scaled dot product attention computed?",
+  "top_k": 5,
+  "document_id": null
+}
+```
+
+#### Q&A API Response:
+```json
+{
+  "query": "How is scaled dot product attention computed?",
+  "answer": "Scaled dot-product attention computes the dot products of the query with all keys, divides each by the square root of the key dimension d_k, and applies a softmax function to obtain attention weights [Source 1].",
+  "sources": [
+    {
+      "document_id": "doc-0d00cb4480e2",
+      "document_name": "Attention_Paper.pdf",
+      "chunk_id": "chk-c77b5dcd5395",
+      "chunk_index": 0,
+      "page_number": 1,
+      "score": 0.5317,
+      "text": "The dot products of the query with all keys are computed..."
+    }
+  ],
+  "document_id": null
+}
+```
+

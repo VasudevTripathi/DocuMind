@@ -221,4 +221,100 @@ class LLMService:
             "entities": entities
         }
 
+    def answer_question(self, question: str, context: str) -> str:
+        """
+        Generates a factual, grounded answer to the user's question using ONLY the retrieved context.
+        If OPENAI_API_KEY is not configured or the call fails, provides a rule-based extractive fallback.
+        """
+        if not context or not context.strip():
+            return "The answer could not be found in the provided documents."
+
+        if not self.api_key:
+            return self._heuristic_qa_fallback(question, context)
+
+        try:
+            client = self.client
+            if not client:
+                return self._heuristic_qa_fallback(question, context)
+
+            system_prompt = (
+                "You are an assistant for question-answering tasks based strictly on provided document excerpts.\n"
+                "Rules:\n"
+                "1. Answer using ONLY the supplied document context.\n"
+                "2. Do not fabricate, assume, or extrapolate facts not directly supported by the context.\n"
+                "3. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
+                "'The answer could not be found in the provided documents.'\n"
+                "4. Do not use outside knowledge or training data to fill in missing information.\n"
+                "5. Keep the answer concise, direct, and factual.\n"
+                "6. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts."
+            )
+
+            user_prompt = (
+                f"QUESTION:\n{question}\n\n"
+                f"RETRIEVED DOCUMENT CONTEXT:\n{context}\n\n"
+                "Based strictly on the retrieved document context above, provide a grounded answer to the question."
+            )
+
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+
+            answer = response.choices[0].message.content or ""
+            return answer.strip() or "The answer could not be found in the provided documents."
+
+        except Exception as e:
+            print(f"[LLMService] OpenAI Q&A request failed ({e}). Employing fallback extraction.")
+            return self._heuristic_qa_fallback(question, context)
+
+    def _heuristic_qa_fallback(self, question: str, context: str) -> str:
+        """
+        Deterministic, rule-based extractive answering when OpenAI API is unavailable.
+        Matches question keywords against sentences in the context and returns the top relevant excerpt.
+        If no meaningful match exists, returns the standard fallback message.
+        """
+        stop_words = {
+            "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
+            "is", "are", "was", "were", "do", "does", "did", "the", "a", "an", "in",
+            "on", "at", "to", "for", "of", "with", "by", "from", "about", "tell",
+            "me", "document", "say", "explain", "please"
+        }
+        q_words = [
+            w.lower().strip("?,.!")
+            for w in question.split()
+            if w.lower().strip("?,.!") not in stop_words and len(w) > 2
+        ]
+
+        if not q_words:
+            return "The answer could not be found in the provided documents."
+
+        sentences = re.split(r"(?<=[.!?])\s+", context)
+        scored_sentences = []
+        for s in sentences:
+            s_clean = s.strip()
+            if (
+                len(s_clean) < 15
+                or s_clean.startswith("[Source")
+                or s_clean.startswith("Document:")
+                or s_clean.startswith("Chunk")
+                or s_clean.startswith("Content:")
+            ):
+                continue
+            s_lower = s_clean.lower()
+            match_count = sum(1 for qw in q_words if qw in s_lower)
+            if match_count > 0:
+                scored_sentences.append((match_count, s_clean))
+
+        if not scored_sentences:
+            return "The answer could not be found in the provided documents."
+
+        scored_sentences.sort(key=lambda x: x[0], reverse=True)
+        top_sentences = [s for _, s in scored_sentences[:2]]
+        return " ".join(top_sentences)
+
 llm_service = LLMService()
