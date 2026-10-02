@@ -90,7 +90,8 @@ class RetrievalService:
                 "chunk_index": chunk.chunk_index,
                 "page_number": chunk.page_number,
                 "text": chunk.text,
-                "similarity_score": score
+                "similarity_score": score,
+                "score": score
             })
 
         logger.info(f"[RetrievalService] Query '{cleaned_query[:40]}' returned {len(results)} results (scoped to: {document_id}).")

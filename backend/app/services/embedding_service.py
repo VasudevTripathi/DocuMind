@@ -21,6 +21,11 @@ class BaseEmbeddingService(ABC):
         pass
 
     @abstractmethod
+    def embed_texts(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+        """Encodes a batch of texts into a normalized 2D float32 numpy array."""
+        pass
+
+    @abstractmethod
     def get_embedding_dimension(self) -> int:
         """Returns the vector dimensionality produced by the embedding model."""
         pass
@@ -98,5 +103,9 @@ class SentenceTransformerEmbeddingService(BaseEmbeddingService):
         norms[norms == 0] = 1.0
         vectors = vectors / norms
         return vectors
+
+    def embed_texts(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
+        """Encodes multiple texts in batches (alias for embed_chunks)."""
+        return self.embed_chunks(texts, batch_size=batch_size)
 
 embedding_service = SentenceTransformerEmbeddingService()

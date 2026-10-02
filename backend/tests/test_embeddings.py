@@ -45,3 +45,13 @@ def test_embedding_empty_input():
 
     empty_batch = embedding_service.embed_chunks([])
     assert empty_batch.shape == (0, 384)
+
+    empty_texts = embedding_service.embed_texts([])
+    assert empty_texts.shape == (0, 384)
+
+def test_embed_texts_interface():
+    """Verify embed_texts interface behaves identically to embed_chunks."""
+    samples = ["First test text.", "Second test text."]
+    vecs = embedding_service.embed_texts(samples)
+    assert vecs.shape == (2, 384)
+    assert vecs.dtype == np.float32

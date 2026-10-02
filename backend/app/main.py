@@ -3,7 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import init_db, SessionLocal
+from app.services.vector_store import vector_store
+from app.models.chunk import DocumentChunk
 from app.api.health import router as health_router
 from app.api.documents import router as documents_router
 from app.api.analysis import router as analysis_router
@@ -15,6 +17,18 @@ async def lifespan(app: FastAPI):
     init_db()
     settings.resolved_upload_dir
     settings.resolved_vector_store_dir
+
+    # Synchronize FAISS index from authoritative SQLite chunks if index is empty
+    db = SessionLocal()
+    try:
+        if vector_store.count() == 0 and db.query(DocumentChunk).count() > 0:
+            vector_store.rebuild_from_db(db)
+    except Exception as e:
+        import logging
+        logging.getLogger("documind.startup").warning(f"Vector store startup sync skipped: {e}")
+    finally:
+        db.close()
+
     yield
 
 app = FastAPI(

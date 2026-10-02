@@ -14,6 +14,7 @@ class SearchResultItem(BaseModel):
     page_number: Optional[int] = None
     text: str
     similarity_score: float
+    score: float
 
     model_config = ConfigDict(from_attributes=True)
 

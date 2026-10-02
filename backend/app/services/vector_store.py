@@ -258,6 +258,31 @@ class VectorStore:
             logger.info(f"[VectorStore] Rebuilt index with {len(items)} vectors.")
             return len(items)
 
+    def rebuild_from_db(self, db, embedder=None) -> int:
+        """
+        Authoritatively rebuilds the FAISS index and metadata directly from SQLite document chunks.
+        Ensures perfect synchronization between SQLite and FAISS.
+        """
+        from app.models.chunk import DocumentChunk
+        if embedder is None:
+            from app.services.embedding_service import embedding_service
+            embedder = embedding_service
+
+        chunks = (
+            db.query(DocumentChunk)
+            .order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
+            .all()
+        )
+
+        if not chunks:
+            self.clear()
+            return 0
+
+        texts = [c.text for c in chunks]
+        vectors = embedder.embed_chunks(texts)
+        items = [(c.id, c.document_id, vectors[i]) for i, c in enumerate(chunks)]
+        return self.rebuild_index(items)
+
     def clear(self) -> None:
         """Clears all vectors and resets the index files."""
         with self._lock:
