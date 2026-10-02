@@ -7,10 +7,10 @@ from app.core.database import init_db
 from app.api.health import router as health_router
 from app.api.documents import router as documents_router
 from app.api.analysis import router as analysis_router
+from app.api.search import router as search_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure database tables and upload folders are initialized on startup
     init_db()
     settings.resolved_upload_dir
     yield
@@ -22,13 +22,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
 origins = [
     settings.FRONTEND_URL,
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
-# Remove any duplicates while preserving order
 unique_origins = list(dict.fromkeys([o.rstrip("/") for o in origins if o]))
 
 app.add_middleware(
@@ -39,10 +37,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API routes
 app.include_router(health_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(analysis_router, prefix="/api")
+app.include_router(search_router)
 
 @app.get("/")
 def root():
