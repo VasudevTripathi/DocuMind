@@ -20,6 +20,17 @@ class SourceChunk(BaseModel):
     phrase_score: Optional[float] = None
     coverage_score: Optional[float] = None
     context_score: Optional[float] = None
+    score_breakdown: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class GroundingMetadata(BaseModel):
+    status: str
+    confidence: float
+    supported_claims: List[str] = Field(default_factory=list)
+    unsupported_claims: List[str] = Field(default_factory=list)
+    source_chunk_ids: List[str] = Field(default_factory=list)
+    conflicts: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -28,5 +39,6 @@ class AnswerResponse(BaseModel):
     answer: str
     sources: List[SourceChunk]
     document_id: Optional[str] = None
+    grounding: Optional[GroundingMetadata] = None
 
     model_config = ConfigDict(from_attributes=True)

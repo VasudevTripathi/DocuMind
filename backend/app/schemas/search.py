@@ -21,6 +21,7 @@ class SearchResultItem(BaseModel):
     phrase_score: Optional[float] = None
     coverage_score: Optional[float] = None
     context_score: Optional[float] = None
+    score_breakdown: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 

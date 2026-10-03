@@ -245,8 +245,10 @@ class LLMService:
                 "3. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
                 "'The answer could not be found in the provided documents.'\n"
                 "4. Do not use outside knowledge or training data to fill in missing information.\n"
-                "5. Keep the answer concise, direct, and factual.\n"
-                "6. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts."
+                "5. Preserve exact numbers, dates, units, and technical identifiers exactly as stated in the context.\n"
+                "6. If retrieved sources provide contradictory or conflicting facts, explicitly state the conflict rather than picking one.\n"
+                "7. Keep the answer concise, direct, and factual.\n"
+                "8. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts, and do not cite sources that were not provided."
             )
 
             user_prompt = (
@@ -305,8 +307,10 @@ class LLMService:
                 "4. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
                 "'The answer could not be found in the provided documents.'\n"
                 "5. Do not use outside knowledge or training data to fill in missing information.\n"
-                "6. Keep the answer concise, direct, and factual.\n"
-                "7. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts."
+                "6. Preserve exact numbers, dates, units, and technical identifiers exactly as stated in the context.\n"
+                "7. If retrieved sources provide contradictory or conflicting facts, explicitly state the conflict rather than picking one.\n"
+                "8. Keep the answer concise, direct, and factual.\n"
+                "9. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts, and do not cite sources that were not provided."
             )
 
             messages = [{"role": "system", "content": system_prompt}]
@@ -350,7 +354,8 @@ class LLMService:
             "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
             "is", "are", "was", "were", "do", "does", "did", "the", "a", "an", "in",
             "on", "at", "to", "for", "of", "with", "by", "from", "about", "tell",
-            "me", "document", "say", "explain", "please"
+            "me", "document", "say", "explain", "please", "during", "after", "before",
+            "between", "under", "over", "into", "through", "across"
         }
         q_words = [
             w.lower().strip("?,.!")
@@ -361,29 +366,49 @@ class LLMService:
         if not q_words:
             return "The answer could not be found in the provided documents."
 
-        sentences = re.split(r"(?<=[.!?])\s+", context)
+        # Extract content sections if formatted with [Source ...]
+        content_blocks = []
+        if "[Source" in context and "Content:" in context:
+            parts = re.split(r"\[Source\s+\d+\]", context)
+            for part in parts:
+                if "Content:" in part:
+                    c_text = part.split("Content:", 1)[1].strip()
+                    if c_text:
+                        content_blocks.append(c_text)
+        if not content_blocks:
+            content_blocks = [context]
+
         scored_sentences = []
-        for s in sentences:
-            s_clean = s.strip()
-            # Strip Content: label prefix if present
-            s_clean = re.sub(r"^Content:\s*", "", s_clean).strip()
-            if (
-                len(s_clean) < 15
-                or s_clean.startswith("[Source")
-                or s_clean.startswith("Document:")
-                or s_clean.startswith("Chunk")
-                or s_clean.startswith("Relevance Score:")
-            ):
-                continue
-            s_lower = s_clean.lower()
-            match_count = sum(1 for qw in q_words if qw in s_lower)
-            if match_count > 0:
-                scored_sentences.append((match_count, s_clean))
+        for block in content_blocks:
+            cleaned_lines = []
+            for line in block.split("\n"):
+                l_strip = line.strip()
+                if (
+                    l_strip.startswith("Document:")
+                    or l_strip.startswith("Chunk ID:")
+                    or l_strip.startswith("Chunk Index:")
+                    or l_strip.startswith("Relevance Score:")
+                ):
+                    continue
+                cleaned_lines.append(line)
+            clean_block = " ".join(cleaned_lines).strip()
+
+            sentences = re.split(r"(?<=[.!?])\s+", clean_block)
+            for s in sentences:
+                s_clean = s.strip()
+                if len(s_clean) < 15:
+                    continue
+                s_lower = s_clean.lower()
+                match_count = sum(1 for qw in q_words if qw in s_lower)
+                # Require meaningful keyword overlap to avoid false positive answers on irrelevant context
+                min_required = 2 if len(q_words) >= 3 else 1
+                if match_count >= min_required:
+                    scored_sentences.append((match_count, s_clean))
 
         if not scored_sentences:
             return "The answer could not be found in the provided documents."
 
-        scored_sentences.sort(key=lambda x: x[0], reverse=True)
+        scored_sentences.sort(key=lambda x: (-x[0], len(x[1])))
         top_sentences = [s for _, s in scored_sentences[:2]]
         return " ".join(top_sentences)
 

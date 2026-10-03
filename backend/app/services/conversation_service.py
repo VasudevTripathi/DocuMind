@@ -231,7 +231,13 @@ class ConversationService:
                     "chunk_index": c["chunk_index"],
                     "page_number": c.get("page_number"),
                     "score": c.get("score") or c.get("similarity_score", 0.0),
-                    "text": c.get("text")
+                    "text": c.get("text"),
+                    "semantic_score": c.get("semantic_score"),
+                    "lexical_score": c.get("lexical_score"),
+                    "phrase_score": c.get("phrase_score"),
+                    "coverage_score": c.get("coverage_score"),
+                    "context_score": c.get("context_score"),
+                    "rerank_score": c.get("rerank_score")
                 }
                 for c in usable_chunks
             ]

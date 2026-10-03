@@ -15,8 +15,13 @@ from app.evaluation.metrics import (
     reciprocal_rank,
     mean_reciprocal_rank,
     average_precision_at_k,
-    mean_average_precision
+    mean_average_precision,
+    grounded_answer_rate,
+    unsupported_claim_rate,
+    numeric_consistency_rate,
+    no_context_rejection_rate,
 )
+from app.services.grounding_service import grounding_service
 
 class SearchableRetriever(Protocol):
     def search(
@@ -128,6 +133,15 @@ class EvaluationResult:
     case_results: List[CaseResult]
 
 @dataclass
+class AnswerEvaluationResult:
+    total_answers: int
+    grounded_answer_rate: float
+    unsupported_claim_rate: float
+    numeric_consistency_rate: float
+    no_context_rejection_rate: float
+    category_summary: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass
 class ComparisonResult:
     baseline: EvaluationResult
     enhanced: EvaluationResult
@@ -135,6 +149,7 @@ class ComparisonResult:
     delta_mrr: float
     delta_map: float
     category_deltas: Dict[str, Dict[str, float]]
+    answer_evaluation: Optional[AnswerEvaluationResult] = None
 
 @dataclass
 class ThreeWayComparisonResult:
@@ -153,6 +168,7 @@ class ThreeWayComparisonResult:
     category_deltas_81_vs_baseline: Dict[str, Dict[str, float]]
     category_deltas_83_vs_baseline: Dict[str, Dict[str, float]]
     category_deltas_83_vs_81: Dict[str, Dict[str, float]]
+    answer_evaluation: Optional[AnswerEvaluationResult] = None
 
 class RAGEvaluator:
     """Runs deterministic evaluation across evaluation cases for any given retriever."""
@@ -336,4 +352,66 @@ class RAGEvaluator:
             category_deltas_81_vs_baseline=c_81_b,
             category_deltas_83_vs_baseline=c_83_b,
             category_deltas_83_vs_81=c_83_81
+        )
+
+    def evaluate_answers(
+        self,
+        rag_service: Any,
+        db: Session,
+        dataset: EvaluationDataset
+    ) -> AnswerEvaluationResult:
+        """
+        Evaluates answer-level grounding, claim support, numeric consistency,
+        and no-context rejection across dataset cases.
+        """
+        statuses: List[str] = []
+        supported_counts: List[int] = []
+        unsupported_counts: List[int] = []
+        consistent_numeric_claims: List[int] = []
+        total_numeric_claims: List[int] = []
+
+        total_no_context = 0
+        rejected_no_context = 0
+        cat_summary: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "supported": 0})
+
+        for case in dataset.cases:
+            ans_res = rag_service.answer_question(db=db, query=case.query, top_k=5)
+            grounding = ans_res.get("grounding", {})
+            status = grounding.get("status", "INSUFFICIENT_EVIDENCE")
+
+            cat_summary[case.category]["count"] += 1
+            if status == "SUPPORTED":
+                cat_summary[case.category]["supported"] += 1
+
+            if case.category == "no_context":
+                total_no_context += 1
+                if status == "INSUFFICIENT_EVIDENCE" or "could not be found" in ans_res.get("answer", "").lower():
+                    rejected_no_context += 1
+            else:
+                statuses.append(status)
+                sup = len(grounding.get("supported_claims", []))
+                unsup = len(grounding.get("unsupported_claims", []))
+                supported_counts.append(sup)
+                unsupported_counts.append(unsup)
+
+                num_ents = grounding_service.extract_numeric_entities(ans_res.get("answer", ""))
+                if num_ents:
+                    total_numeric_claims.append(len(num_ents))
+                    if status == "SUPPORTED":
+                        consistent_numeric_claims.append(len(num_ents))
+                    else:
+                        consistent_numeric_claims.append(0)
+
+        gar = grounded_answer_rate(statuses)
+        ucr = unsupported_claim_rate(supported_counts, unsupported_counts)
+        ncr = numeric_consistency_rate(consistent_numeric_claims, total_numeric_claims)
+        nrr = no_context_rejection_rate(rejected_no_context, total_no_context)
+
+        return AnswerEvaluationResult(
+            total_answers=len(dataset.cases),
+            grounded_answer_rate=gar,
+            unsupported_claim_rate=ucr,
+            numeric_consistency_rate=ncr,
+            no_context_rejection_rate=nrr,
+            category_summary=dict(cat_summary)
         )

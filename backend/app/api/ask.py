@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas.qa import QuestionRequest, AnswerResponse, SourceChunk
+from app.schemas.qa import QuestionRequest, AnswerResponse, SourceChunk, GroundingMetadata
 from app.services.retrieval_service import DocumentNotFoundError
 from app.services.rag_service import rag_service
 
@@ -35,7 +35,8 @@ def ask_question(
             query=result["query"],
             answer=result["answer"],
             sources=[SourceChunk(**s) for s in result["sources"]],
-            document_id=result.get("document_id")
+            document_id=result.get("document_id"),
+            grounding=GroundingMetadata(**result["grounding"]) if result.get("grounding") else None
         )
 
     except ValueError as ve:

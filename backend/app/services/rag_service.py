@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.document import Document
 from app.services.retrieval_service import retrieval_service, RetrievalService, DocumentNotFoundError
 from app.services.llm_service import llm_service, LLMService
+from app.services.grounding_service import grounding_service, GroundingService, GroundingStatus, GroundingEvaluation
 
 logger = logging.getLogger("documind.rag")
 
@@ -34,22 +35,25 @@ def format_grounded_context(chunks: List[Dict[str, Any]]) -> str:
 
 class RAGService:
     """
-    Orchestrates the document-grounded question answering workflow:
+    Orchestrates the document-grounded question answering workflow (Phase 8.4):
     1. Validates query and document scoping.
     2. Calls RetrievalService to fetch top-k relevant chunks.
     3. Handles no-context scenarios safely without calling the LLM.
     4. Assembles grounded context with source citations.
     5. Invokes LLM service with dedicated grounding prompt.
-    6. Returns structured answer and source attribution.
+    6. Verifies answer grounding and source attribution.
+    7. Returns structured answer, source attribution, and deterministic grounding metadata.
     """
 
     def __init__(
         self,
         retrieval: RetrievalService = retrieval_service,
-        llm: LLMService = llm_service
+        llm: LLMService = llm_service,
+        grounding: GroundingService = grounding_service
     ):
         self.retrieval_service = retrieval
         self.llm_service = llm
+        self.grounding_service = grounding
 
     def answer_question(
         self,
@@ -90,11 +94,19 @@ class RAGService:
         # 2. No-context guard: If no usable chunks retrieved, do NOT call LLM
         if not usable_chunks:
             logger.info(f"[RAGService] No usable chunks retrieved for query: '{cleaned_query[:40]}'. Returning fallback.")
+            fallback_grounding = GroundingEvaluation(
+                status=GroundingStatus.INSUFFICIENT_EVIDENCE,
+                confidence=0.0,
+                supported_claims=[],
+                unsupported_claims=[],
+                source_chunk_ids=[]
+            )
             return {
                 "query": cleaned_query,
                 "answer": NO_CONTEXT_FALLBACK,
                 "sources": [],
-                "document_id": document_id
+                "document_id": document_id,
+                "grounding": fallback_grounding.to_dict()
             }
 
         # 3. Assemble grounded context
@@ -107,7 +119,14 @@ class RAGService:
             context=context_str
         )
 
-        # 5. Format sources
+        # 5. Evaluate answer grounding deterministically
+        grounding_eval = self.grounding_service.verify_answer(
+            query=cleaned_query,
+            answer=answer,
+            evidence_chunks=usable_chunks
+        )
+
+        # 6. Format sources
         if answer.strip() == NO_CONTEXT_FALLBACK:
             sources = []
         else:
@@ -119,7 +138,14 @@ class RAGService:
                     "chunk_index": c["chunk_index"],
                     "page_number": c.get("page_number"),
                     "score": c.get("score") or c.get("similarity_score", 0.0),
-                    "text": c.get("text")
+                    "text": c.get("text"),
+                    "semantic_score": c.get("semantic_score"),
+                    "lexical_score": c.get("lexical_score"),
+                    "phrase_score": c.get("phrase_score"),
+                    "coverage_score": c.get("coverage_score"),
+                    "context_score": c.get("context_score"),
+                    "rerank_score": c.get("rerank_score"),
+                    "score_breakdown": c.get("score_breakdown")
                 }
                 for c in usable_chunks
             ]
@@ -128,7 +154,8 @@ class RAGService:
             "query": cleaned_query,
             "answer": answer,
             "sources": sources,
-            "document_id": document_id
+            "document_id": document_id,
+            "grounding": grounding_eval.to_dict()
         }
 
 rag_service = RAGService()

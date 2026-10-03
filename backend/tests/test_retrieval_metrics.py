@@ -133,3 +133,30 @@ def test_average_precision_and_map():
     # MAP
     assert mean_average_precision([1.0, 0.5]) == 0.75
     assert mean_average_precision([]) == 0.0
+
+def test_grounding_metrics():
+    from app.evaluation.metrics import (
+        grounded_answer_rate,
+        unsupported_claim_rate,
+        numeric_consistency_rate,
+        no_context_rejection_rate
+    )
+
+    # 1. Grounded answer rate
+    assert grounded_answer_rate(["SUPPORTED", "SUPPORTED", "PARTIALLY_SUPPORTED", "INSUFFICIENT_EVIDENCE"]) == 0.5
+    assert grounded_answer_rate([]) == 0.0
+
+    # 2. Unsupported claim rate
+    # 3 supported, 1 unsupported -> 1 / (3 + 1) = 0.25
+    assert unsupported_claim_rate([3], [1]) == 0.25
+    assert unsupported_claim_rate([], []) == 0.0
+
+    # 3. Numeric consistency rate
+    # 4 consistent out of 5 numeric claims -> 4/5 = 0.8
+    assert numeric_consistency_rate([4], [5]) == 0.8
+    assert numeric_consistency_rate([], []) == 1.0
+
+    # 4. No-context rejection rate
+    assert no_context_rejection_rate(3, 3) == 1.0
+    assert no_context_rejection_rate(2, 4) == 0.5
+    assert no_context_rejection_rate(0, 0) == 1.0

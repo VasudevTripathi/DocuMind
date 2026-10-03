@@ -124,3 +124,39 @@ def mean_average_precision(ap_scores: Sequence[float]) -> float:
     if not ap_scores:
         return 0.0
     return float(sum(ap_scores)) / float(len(ap_scores))
+
+def grounded_answer_rate(statuses: Sequence[str]) -> float:
+    """
+    Grounded Answer Rate: fraction of evaluated answers that are fully supported.
+    """
+    if not statuses:
+        return 0.0
+    supported = sum(1 for s in statuses if s == "SUPPORTED")
+    return float(supported) / float(len(statuses))
+
+def unsupported_claim_rate(supported_counts: Sequence[int], unsupported_counts: Sequence[int]) -> float:
+    """
+    Unsupported Claim Rate: (total unsupported claims) / (total claims evaluated).
+    """
+    total_unsupported = sum(unsupported_counts)
+    total_claims = sum(supported_counts) + total_unsupported
+    if total_claims == 0:
+        return 0.0
+    return float(total_unsupported) / float(total_claims)
+
+def numeric_consistency_rate(consistent_counts: Sequence[int], total_numeric_counts: Sequence[int]) -> float:
+    """
+    Numeric Consistency Rate: (consistent numeric claims) / (total claims containing numeric facts).
+    """
+    total_numeric = sum(total_numeric_counts)
+    if total_numeric == 0:
+        return 1.0  # vacuously 100% consistent if no numeric claims
+    return float(sum(consistent_counts)) / float(total_numeric)
+
+def no_context_rejection_rate(rejected_count: int, total_no_context: int) -> float:
+    """
+    No-Context Rejection Rate: correctly rejected no-context queries / total no-context queries.
+    """
+    if total_no_context <= 0:
+        return 1.0
+    return float(rejected_count) / float(total_no_context)

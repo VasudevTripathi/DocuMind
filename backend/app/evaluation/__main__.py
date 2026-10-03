@@ -9,6 +9,7 @@ from app.core.database import Base
 from app.services.embedding_service import embedding_service
 from app.services.reranker import RetrievalReranker
 from app.services.retrieval_service import RetrievalService
+from app.services.rag_service import RAGService
 from app.services.vector_store import VectorStore
 from app.evaluation.dataset import get_evaluation_dataset
 from app.evaluation.evaluator import BaselineRetriever, RAGEvaluator
@@ -99,6 +100,15 @@ def run_evaluation() -> int:
             phase81=phase81_result,
             phase83=phase83_result
         )
+
+        # 4. Evaluate Answer Grounding (Phase 8.4)
+        rag_svc = RAGService(retrieval=phase83_retriever)
+        answer_eval = evaluator.evaluate_answers(
+            rag_service=rag_svc,
+            db=db,
+            dataset=dataset
+        )
+        comparison.answer_evaluation = answer_eval
 
         report_text = format_evaluation_report(comparison)
         print(report_text)
