@@ -1,11 +1,18 @@
+import logging
 import os
-import json
-import re
 from typing import Dict, List, Any, Optional
-from openai import OpenAI
-from app.core.config import settings
 
-# Cost control: Limit maximum words sent to LLM for cost-efficient analysis
+from app.core.config import settings
+from app.services.llm_provider import (
+    BaseLLMProvider,
+    GeminiProvider,
+    OpenAIProvider,
+    HeuristicFallbackProvider,
+    GenerationResult
+)
+
+logger = logging.getLogger("documind.llm")
+
 MAX_LLM_INPUT_WORDS = 2500
 
 class LLMServiceError(Exception):
@@ -13,403 +20,151 @@ class LLMServiceError(Exception):
     pass
 
 class LLMService:
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        self.api_key = api_key or settings.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
-        self.model = model or settings.LLM_MODEL or "gpt-4o-mini"
-        self._client: Optional[OpenAI] = None
+    """
+    Coordinates LLM answer generation and document analysis:
+    - Resolves active provider (GeminiProvider if API key is present and functional)
+    - Automatically falls back to HeuristicFallbackProvider on any error, timeout, or missing key
+    - Produces GenerationResult containing provider telemetry without breaking string contracts
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        primary_provider: Optional[BaseLLMProvider] = None,
+        fallback_provider: Optional[BaseLLMProvider] = None
+    ):
+        if api_key is not None:
+            self.api_key = api_key
+        else:
+            self.api_key = (
+                settings.GEMINI_API_KEY
+                or os.environ.get("GEMINI_API_KEY")
+                or settings.OPENAI_API_KEY
+                or os.environ.get("OPENAI_API_KEY")
+            )
+        self.model = model or settings.LLM_MODEL or "gemini-2.5-flash"
+        self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
+        self._primary_provider = primary_provider
+        if self._primary_provider is None and self.api_key:
+            self._primary_provider = GeminiProvider(
+                api_key=self.api_key,
+                model=self.model,
+                timeout=15.0,
+                max_retries=2
+            )
 
     @property
-    def client(self) -> Optional[OpenAI]:
-        if self._client is None and self.api_key:
-            self._client = OpenAI(api_key=self.api_key)
-        return self._client
+    def client(self):
+        if self._primary_provider and hasattr(self._primary_provider, "client"):
+            return self._primary_provider.client
+        return getattr(self, "_client", None)
 
-    def prepare_representative_text(self, text: str, max_words: int = MAX_LLM_INPUT_WORDS) -> str:
+    @client.setter
+    def client(self, val):
+        self._client = val
+        if hasattr(self, "_primary_provider") and self._primary_provider:
+            self._primary_provider._client = val
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        if name in ("_client", "client") and hasattr(self, "_primary_provider") and self._primary_provider:
+            self._primary_provider._client = value
+
+    @property
+    def has_active_api_key(self) -> bool:
+        return bool(self.api_key and self.api_key.strip())
+
+    @property
+    def active_provider_name(self) -> str:
+        if self.has_active_api_key and self._primary_provider:
+            return getattr(self._primary_provider, "provider_name", "gemini")
+        return "heuristic_fallback"
+
+    def answer_question(self, question: str, context: str) -> GenerationResult:
         """
-        Implements budget-conscious cost control by taking representative sections:
-        - Opening sections / introduction
-        - Middle context
-        - Concluding section
-        Without sending entire massive 200+ page documents to the API.
-        """
-        words = text.split()
-        if len(words) <= max_words:
-            return text
-
-        # Budget allocation: 60% beginning, 20% middle, 20% end
-        head_count = int(max_words * 0.6)
-        mid_count = int(max_words * 0.2)
-        tail_count = int(max_words * 0.2)
-
-        mid_start = (len(words) // 2) - (mid_count // 2)
-        mid_end = mid_start + mid_count
-
-        head_part = " ".join(words[:head_count])
-        mid_part = " ".join(words[mid_start:mid_end])
-        tail_part = " ".join(words[-tail_count:])
-
-        return f"{head_part}\n\n[... content truncated for cost efficiency ...]\n\n{mid_part}\n\n[... content truncated for cost efficiency ...]\n\n{tail_part}"
-
-    def analyze_document(self, text: str) -> Dict[str, Any]:
-        """
-        Extracts summary, key findings, and named entities using OpenAI.
-        If API key is missing or calls fail, falls back to rule-based heuristic extraction.
-        """
-        sample_text = self.prepare_representative_text(text)
-
-        if not self.api_key:
-            print("[LLMService] OPENAI_API_KEY not configured. Falling back to heuristic text extraction.")
-            return self._heuristic_fallback(sample_text)
-
-        try:
-            client = self.client
-            if not client:
-                return self._heuristic_fallback(sample_text)
-
-            prompt = (
-                "You are an expert document analyst. Analyze the following document text and return ONLY a valid JSON object "
-                "with this exact structure:\n"
-                "{\n"
-                '  "summary": "Concise 2-4 sentence executive summary of the document.",\n'
-                '  "key_findings": [\n'
-                '    {"text": "Key insight or critical takeaway 1", "priority": "high"},\n'
-                '    {"text": "Key insight or critical takeaway 2", "priority": "medium"}\n'
-                "  ],\n"
-                '  "entities": [\n'
-                '    {"name": "Entity Name", "type": "ORGANIZATION | PERSON | TECHNOLOGY | CONCEPT | LOCATION"}\n'
-                "  ]\n"
-                "}\n\n"
-                "Do NOT include Markdown code fences or extra text, just raw JSON.\n\n"
-                f"DOCUMENT TEXT:\n{sample_text}"
-            )
-
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a professional document analysis intelligence system. Output strictly valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=1000
-            )
-
-            raw_content = response.choices[0].message.content or ""
-            parsed = self._clean_and_parse_json(raw_content)
-            validated = self._validate_structure(parsed)
-            return validated
-
-        except Exception as e:
-            print(f"[LLMService] OpenAI request failed ({e}). Employing fallback extraction.")
-            return self._heuristic_fallback(sample_text)
-
-    def _clean_and_parse_json(self, raw_content: str) -> Dict[str, Any]:
-        """Cleans possible code fences and parses JSON safely."""
-        cleaned = raw_content.strip()
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-        cleaned = cleaned.strip()
-
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError as err:
-            # Try to match first { ... } block
-            match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-            if match:
-                try:
-                    return json.loads(match.group(0))
-                except Exception:
-                    pass
-            raise LLMServiceError(f"Failed to decode LLM JSON response: {err}")
-
-    def _validate_structure(self, data: Any) -> Dict[str, Any]:
-        """Ensures the returned JSON adheres to required schema."""
-        if not isinstance(data, dict):
-            raise LLMServiceError("LLM response root is not an object.")
-
-        summary = str(data.get("summary", "")).strip()
-        if not summary:
-            summary = "Summary could not be generated."
-
-        key_findings: List[Dict[str, str]] = []
-        for item in data.get("key_findings", []):
-            if isinstance(item, dict) and "text" in item:
-                text_val = str(item.get("text", "")).strip()
-                priority_val = str(item.get("priority", "medium")).lower()
-                if priority_val not in ["high", "medium", "low"]:
-                    priority_val = "medium"
-                if text_val:
-                    key_findings.append({
-                        "text": text_val,
-                        "priority": priority_val
-                    })
-
-        entities: List[Dict[str, str]] = []
-        seen_entities = set()
-        for item in data.get("entities", []):
-            if isinstance(item, dict) and "name" in item:
-                name_val = str(item.get("name", "")).strip()
-                type_val = str(item.get("type", "CONCEPT")).strip().upper()
-                if name_val and name_val.lower() not in seen_entities:
-                    seen_entities.add(name_val.lower())
-                    entities.append({
-                        "name": name_val,
-                        "type": type_val
-                    })
-
-        return {
-            "summary": summary,
-            "key_findings": key_findings,
-            "entities": entities
-        }
-
-    def _heuristic_fallback(self, text: str) -> Dict[str, Any]:
-        """
-        Deterministic, rule-based fallback when LLM API is unavailable.
-        Extracts lead sentences for summary, detects salient points, and extracts entities via regex.
-        """
-        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-        
-        # Summary: First 2-3 substantive sentences
-        lead_text = " ".join(paragraphs[:2]) if paragraphs else text
-        sentences = re.split(r"(?<=[.!?])\s+", lead_text)
-        summary = " ".join(sentences[:3]).strip() or "No summary available."
-
-        # Key Findings: Look for bullet points or informative statements
-        findings = []
-        bullet_matches = re.findall(r"(?:^|\n)(?:[-*•]|\d+\.)\s*(.+)", text)
-        for b in bullet_matches[:4]:
-            cleaned_b = b.strip()
-            if len(cleaned_b) > 15:
-                findings.append({
-                    "text": cleaned_b,
-                    "priority": "high" if len(findings) == 0 else "medium"
-                })
-
-        if not findings and len(sentences) > 3:
-            for s in sentences[3:7]:
-                if len(s.strip()) > 20:
-                    findings.append({
-                        "text": s.strip(),
-                        "priority": "medium"
-                    })
-
-        if not findings:
-            findings.append({
-                "text": "Document successfully ingested and indexed into system library.",
-                "priority": "medium"
-            })
-
-        # Entities: Extract capitalized multi-word phrases and common technical/legal terms
-        entity_patterns = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", text)
-        entities = []
-        seen = set()
-        for ent in entity_patterns:
-            ent_clean = ent.strip()
-            if ent_clean.lower() not in seen and len(ent_clean) > 3:
-                seen.add(ent_clean.lower())
-                entities.append({
-                    "name": ent_clean,
-                    "type": "CONCEPT"
-                })
-            if len(entities) >= 6:
-                break
-
-        return {
-            "summary": summary,
-            "key_findings": findings,
-            "entities": entities
-        }
-
-    def answer_question(self, question: str, context: str) -> str:
-        """
-        Generates a factual, grounded answer to the user's question using ONLY the retrieved context.
-        If OPENAI_API_KEY is not configured or the call fails, provides a rule-based extractive fallback.
+        Generates a factual, grounded answer to the question using ONLY the retrieved context.
+        Attempts Gemini generation if configured; falls back to deterministic extraction on failure.
         """
         if not context or not context.strip():
-            return "The answer could not be found in the provided documents."
-
-        if not self.api_key:
-            return self._heuristic_qa_fallback(question, context)
-
-        try:
-            client = self.client
-            if not client:
-                return self._heuristic_qa_fallback(question, context)
-
-            system_prompt = (
-                "You are an assistant for question-answering tasks based strictly on provided document excerpts.\n"
-                "Rules:\n"
-                "1. Answer using ONLY the supplied document context.\n"
-                "2. Do not fabricate, assume, or extrapolate facts not directly supported by the context.\n"
-                "3. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
-                "'The answer could not be found in the provided documents.'\n"
-                "4. Do not use outside knowledge or training data to fill in missing information.\n"
-                "5. Preserve exact numbers, dates, units, and technical identifiers exactly as stated in the context.\n"
-                "6. If retrieved sources provide contradictory or conflicting facts, explicitly state the conflict rather than picking one.\n"
-                "7. Keep the answer concise, direct, and factual.\n"
-                "8. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts, and do not cite sources that were not provided."
+            return GenerationResult(
+                text="The answer could not be found in the provided documents.",
+                provider=self.active_provider_name,
+                model=self.model if self.has_active_api_key else "extractive-rules"
             )
 
-            user_prompt = (
-                f"QUESTION:\n{question}\n\n"
-                f"RETRIEVED DOCUMENT CONTEXT:\n{context}\n\n"
-                "Based strictly on the retrieved document context above, provide a grounded answer to the question."
-            )
+        if self.has_active_api_key and self._primary_provider:
+            try:
+                logger.info(f"[LLMService] Generating answer via Gemini ({self.model})...")
+                return self._primary_provider.generate_answer(question, context)
+            except Exception as e:
+                logger.warning(
+                    f"[LLMService] Gemini generation encountered an error ({e}). "
+                    f"Seamlessly degrading to deterministic heuristic fallback.",
+                    exc_info=False
+                )
 
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=500
-            )
-
-            answer = response.choices[0].message.content or ""
-            return answer.strip() or "The answer could not be found in the provided documents."
-
-        except Exception as e:
-            print(f"[LLMService] OpenAI Q&A request failed ({e}). Employing fallback extraction.")
-            return self._heuristic_qa_fallback(question, context)
+        logger.info("[LLMService] Utilizing deterministic heuristic fallback answering.")
+        return self._fallback_provider.generate_answer(question, context)
 
     def answer_conversational_question(
         self,
         question: str,
         context: str,
         history: Optional[List[Dict[str, str]]] = None
-    ) -> str:
+    ) -> GenerationResult:
         """
-        Generates a factual, grounded answer to a multi-turn conversation question
-        using strictly the retrieved document context. Conversation history is passed
-        strictly for reference resolution (e.g., pronouns), and is explicitly not
-        treated as primary evidence.
+        Generates a conversational answer incorporating bounded dialogue turns.
+        Preserves the strict boundary where document context is authoritative evidence.
         """
         if not context or not context.strip():
-            return "The answer could not be found in the provided documents."
-
-        if not self.api_key:
-            return self._heuristic_qa_fallback(question, context)
-
-        try:
-            client = self.client
-            if not client:
-                return self._heuristic_qa_fallback(question, context)
-
-            system_prompt = (
-                "You are an assistant for question-answering tasks based strictly on provided document excerpts.\n"
-                "Rules:\n"
-                "1. Answer using ONLY the supplied document context.\n"
-                "2. Conversation history is provided solely to resolve references (such as pronouns, abbreviations, or follow-up topics). "
-                "Do NOT treat previous conversation turns as authoritative factual evidence; all facts must come from the retrieved document context.\n"
-                "3. Do not fabricate, assume, or extrapolate facts not directly supported by the context.\n"
-                "4. If the answer is not supported by or cannot be deduced from the retrieved context, state clearly: "
-                "'The answer could not be found in the provided documents.'\n"
-                "5. Do not use outside knowledge or training data to fill in missing information.\n"
-                "6. Preserve exact numbers, dates, units, and technical identifiers exactly as stated in the context.\n"
-                "7. If retrieved sources provide contradictory or conflicting facts, explicitly state the conflict rather than picking one.\n"
-                "8. Keep the answer concise, direct, and factual.\n"
-                "9. Cite the supplied sources (e.g., [Source 1], [Source 2]) when referencing facts, and do not cite sources that were not provided."
+            return GenerationResult(
+                text="The answer could not be found in the provided documents.",
+                provider=self.active_provider_name,
+                model=self.model if self.has_active_api_key else "extractive-rules"
             )
 
-            messages = [{"role": "system", "content": system_prompt}]
+        if self.has_active_api_key and self._primary_provider:
+            try:
+                logger.info(f"[LLMService] Generating conversational answer via Gemini ({self.model})...")
+                return self._primary_provider.generate_conversational_answer(question, context, history)
+            except Exception as e:
+                logger.warning(
+                    f"[LLMService] Gemini conversational generation failed ({e}). "
+                    f"Degrading to heuristic fallback.",
+                    exc_info=False
+                )
 
-            # Add bounded recent history if provided (up to last 6 messages)
-            if history:
-                for h in history[-6:]:
-                    r = h.get("role")
-                    c = h.get("content")
-                    if r in ("user", "assistant") and c:
-                        messages.append({"role": r, "content": c})
+        logger.info("[LLMService] Utilizing deterministic heuristic conversational answering.")
+        return self._fallback_provider.generate_conversational_answer(question, context, history)
 
-            user_prompt = (
-                f"QUESTION:\n{question}\n\n"
-                f"RETRIEVED DOCUMENT CONTEXT:\n{context}\n\n"
-                "Based strictly on the retrieved document context above, provide a grounded answer to the question."
-            )
-            messages.append({"role": "user", "content": user_prompt})
-
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.1,
-                max_tokens=500
-            )
-
-            answer = response.choices[0].message.content or ""
-            return answer.strip() or "The answer could not be found in the provided documents."
-
-        except Exception as e:
-            print(f"[LLMService] OpenAI Conversational Q&A failed ({e}). Employing fallback extraction.")
-            return self._heuristic_qa_fallback(question, context)
-
-    def _heuristic_qa_fallback(self, question: str, context: str) -> str:
+    def analyze_document(self, text: str) -> Dict[str, Any]:
         """
-        Deterministic, rule-based extractive answering when OpenAI API is unavailable.
-        Matches question keywords against sentences in the context and returns the top relevant excerpt.
-        If no meaningful match exists, returns the standard fallback message.
+        Extracts summary, key findings, and named entities.
+        Falls back to rule-based heuristic extraction if Gemini call fails.
         """
-        stop_words = {
-            "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
-            "is", "are", "was", "were", "do", "does", "did", "the", "a", "an", "in",
-            "on", "at", "to", "for", "of", "with", "by", "from", "about", "tell",
-            "me", "document", "say", "explain", "please", "during", "after", "before",
-            "between", "under", "over", "into", "through", "across"
-        }
-        q_words = [
-            w.lower().strip("?,.!")
-            for w in question.split()
-            if w.lower().strip("?,.!") not in stop_words and len(w) > 2
-        ]
+        if self.has_active_api_key and self._primary_provider:
+            try:
+                return self._primary_provider.analyze_document(text)
+            except Exception as e:
+                logger.warning(f"[LLMService] Gemini document analysis failed ({e}). Employing fallback.")
 
-        if not q_words:
-            return "The answer could not be found in the provided documents."
+        return self._fallback_provider.analyze_document(text)
 
-        # Extract content sections if formatted with [Source ...]
-        content_blocks = []
-        if "[Source" in context and "Content:" in context:
-            parts = re.split(r"\[Source\s+\d+\]", context)
-            for part in parts:
-                if "Content:" in part:
-                    c_text = part.split("Content:", 1)[1].strip()
-                    if c_text:
-                        content_blocks.append(c_text)
-        if not content_blocks:
-            content_blocks = [context]
-
-        scored_sentences = []
-        for block in content_blocks:
-            cleaned_lines = []
-            for line in block.split("\n"):
-                l_strip = line.strip()
-                if (
-                    l_strip.startswith("Document:")
-                    or l_strip.startswith("Chunk ID:")
-                    or l_strip.startswith("Chunk Index:")
-                    or l_strip.startswith("Relevance Score:")
-                ):
-                    continue
-                cleaned_lines.append(line)
-            clean_block = " ".join(cleaned_lines).strip()
-
-            sentences = re.split(r"(?<=[.!?])\s+", clean_block)
-            for s in sentences:
-                s_clean = s.strip()
-                if len(s_clean) < 15:
-                    continue
-                s_lower = s_clean.lower()
-                match_count = sum(1 for qw in q_words if qw in s_lower)
-                # Require meaningful keyword overlap to avoid false positive answers on irrelevant context
-                min_required = 2 if len(q_words) >= 3 else 1
-                if match_count >= min_required:
-                    scored_sentences.append((match_count, s_clean))
-
-        if not scored_sentences:
-            return "The answer could not be found in the provided documents."
-
-        scored_sentences.sort(key=lambda x: (-x[0], len(x[1])))
-        top_sentences = [s for _, s in scored_sentences[:2]]
-        return " ".join(top_sentences)
+    # Backward compatibility helper
+    def prepare_representative_text(self, text: str, max_words: int = MAX_LLM_INPUT_WORDS) -> str:
+        words = text.split()
+        if len(words) <= max_words:
+            return text
+        head_count = int(max_words * 0.6)
+        mid_count = int(max_words * 0.2)
+        tail_count = int(max_words * 0.2)
+        mid_start = (len(words) // 2) - (mid_count // 2)
+        mid_end = mid_start + mid_count
+        return (
+            " ".join(words[:head_count]) + "\n\n[...]\n\n" +
+            " ".join(words[mid_start:mid_end]) + "\n\n[...]\n\n" +
+            " ".join(words[-tail_count:])
+        )
 
 llm_service = LLMService()

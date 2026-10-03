@@ -143,6 +143,8 @@ class AnswerEvaluationResult:
     no_context_rejection_rate: float
     conflict_detection_rate: float = 1.0
     partial_support_detection_rate: float = 1.0
+    provider: str = "heuristic_fallback"
+    model: str = "extractive-rules"
     category_summary: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
@@ -382,10 +384,17 @@ class RAGEvaluator:
         detected_partial = 0
         cat_summary: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "supported": 0})
 
+        gen_provider = "heuristic_fallback"
+        gen_model = "extractive-rules"
+
         for case in dataset.cases:
             ans_res = rag_service.answer_question(db=db, query=case.query, top_k=5)
             grounding = ans_res.get("grounding", {})
             status = grounding.get("status", "INSUFFICIENT_EVIDENCE")
+
+            if ans_res.get("provider") and ans_res.get("provider") != "system_guard":
+                gen_provider = ans_res["provider"]
+                gen_model = ans_res.get("model", gen_model)
 
             cat_summary[case.category]["count"] += 1
             if status == "SUPPORTED":
@@ -438,5 +447,7 @@ class RAGEvaluator:
             no_context_rejection_rate=nrr,
             conflict_detection_rate=cdr,
             partial_support_detection_rate=psr,
+            provider=gen_provider,
+            model=gen_model,
             category_summary=dict(cat_summary)
         )

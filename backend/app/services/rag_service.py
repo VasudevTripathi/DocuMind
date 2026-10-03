@@ -116,7 +116,9 @@ class RAGService:
                 "answer": NO_CONTEXT_FALLBACK,
                 "sources": [],
                 "document_id": document_id,
-                "grounding": fallback_grounding.to_dict()
+                "grounding": fallback_grounding.to_dict(),
+                "provider": "system_guard",
+                "model": "no-context-abstention"
             }
 
         # 3. Assemble grounded context
@@ -167,10 +169,12 @@ class RAGService:
 
         return {
             "query": cleaned_query,
-            "answer": answer,
+            "answer": str(answer),
             "sources": sources,
             "document_id": document_id,
-            "grounding": grounding_eval.to_dict()
+            "grounding": grounding_eval.to_dict(),
+            "provider": getattr(answer, "provider", "heuristic_fallback"),
+            "model": getattr(answer, "model", "extractive-rules")
         }
 
 rag_service = RAGService()

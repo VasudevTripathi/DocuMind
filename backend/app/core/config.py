@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./data/uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
     FRONTEND_URL: str = "http://localhost:5173"
+    GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
-    LLM_MODEL: str = "gpt-4o-mini"
+    LLM_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     VECTOR_STORE_DIR: str = "./data/vector_store"
 

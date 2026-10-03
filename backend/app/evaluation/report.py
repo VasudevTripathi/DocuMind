@@ -190,6 +190,7 @@ def format_evaluation_report(comparison: Union[ComparisonResult, ThreeWayCompari
         lines.append("ANSWER GROUNDING EVALUATION (Phase 8.4 / 8.5)")
         lines.append("---------------------------------------------")
         lines.append(f"Evaluated Cases: {ae.total_answers}")
+        lines.append(f"Generation Provider: {ae.provider} ({ae.model})")
         lines.append(f"Grounded Answer Rate: {ae.grounded_answer_rate:.4f}")
         lines.append(f"Unsupported Claim Rate: {ae.unsupported_claim_rate:.4f}")
         lines.append(f"Numeric Consistency Rate: {ae.numeric_consistency_rate:.4f}")

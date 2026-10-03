@@ -36,7 +36,9 @@ def ask_question(
             answer=result["answer"],
             sources=[SourceChunk(**s) for s in result["sources"]],
             document_id=result.get("document_id"),
-            grounding=GroundingMetadata(**result["grounding"]) if result.get("grounding") else None
+            grounding=GroundingMetadata(**result["grounding"]) if result.get("grounding") else None,
+            provider=result.get("provider"),
+            model=result.get("model")
         )
 
     except ValueError as ve:

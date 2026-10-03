@@ -40,5 +40,7 @@ class AnswerResponse(BaseModel):
     sources: List[SourceChunk]
     document_id: Optional[str] = None
     grounding: Optional[GroundingMetadata] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

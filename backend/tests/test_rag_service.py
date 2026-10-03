@@ -143,12 +143,10 @@ def test_grounded_prompt_structure():
     """
     mock_client = MagicMock()
     mock_response = MagicMock()
-    mock_choice = MagicMock()
-    mock_choice.message.content = "Grounded response citing [Source 1]."
-    mock_response.choices = [mock_choice]
-    mock_client.chat.completions.create.return_value = mock_response
+    mock_response.text = "Grounded response citing [Source 1]."
+    mock_client.models.generate_content.return_value = mock_response
 
-    service = LLMService(api_key="sk-test-fake-key")
+    service = LLMService(api_key="fake-gemini-key")
     service._client = mock_client
 
     context = "[Source 1]\nDocument: Sample.pdf\nContent: The server runs on port 8000."
@@ -158,12 +156,11 @@ def test_grounded_prompt_structure():
     )
 
     assert answer == "Grounded response citing [Source 1]."
-    mock_client.chat.completions.create.assert_called_once()
-    create_args = mock_client.chat.completions.create.call_args[1]
+    mock_client.models.generate_content.assert_called_once()
+    create_args = mock_client.models.generate_content.call_args[1]
 
-    messages = create_args["messages"]
-    system_msg = next(m["content"] for m in messages if m["role"] == "system")
-    user_msg = next(m["content"] for m in messages if m["role"] == "user")
+    system_msg = create_args["config"].system_instruction
+    user_msg = create_args["contents"]
 
     # Grounding instructions
     assert "Answer using ONLY the supplied document context" in system_msg

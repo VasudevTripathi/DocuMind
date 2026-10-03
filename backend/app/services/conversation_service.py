@@ -257,9 +257,11 @@ class ConversationService:
             "id": assistant_msg.id,
             "conversation_id": conversation.id,
             "role": "assistant",
-            "content": answer,
+            "content": str(answer),
             "sources": sources,
-            "created_at": assistant_msg.created_at
+            "created_at": assistant_msg.created_at,
+            "provider": getattr(answer, "provider", "heuristic_fallback"),
+            "model": getattr(answer, "model", "extractive-rules")
         }
 
 conversation_service = ConversationService()

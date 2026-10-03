@@ -348,6 +348,27 @@ export const Chat = () => {
                   <div className="msg-bubble">
                     <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
 
+                    {/* Telemetry & Grounding Metadata Bar */}
+                    {!isUser && (msg.provider || msg.model || msg.grounding) && (
+                      <div className="msg-meta-bar">
+                        {msg.grounding?.status && (
+                          <span className={`grounding-badge ${msg.grounding.status.toLowerCase()}`}>
+                            {msg.grounding.status.replace('_', ' ')}
+                            {msg.grounding.confidence ? ` • ${Math.round(msg.grounding.confidence * 100)}%` : ''}
+                          </span>
+                        )}
+                        {(msg.provider || msg.model) && (
+                          <span className="provider-pill">
+                            {msg.provider === 'gemini'
+                              ? `Gemini (${msg.model || 'gemini-2.5-flash'})`
+                              : msg.provider === 'openai'
+                                ? `OpenAI (${msg.model || 'gpt-4o-mini'})`
+                                : 'Local Fallback'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Source Attribution Accordion */}
                     {hasSources && (
                       <div className="sources-container">
