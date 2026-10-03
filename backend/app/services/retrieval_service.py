@@ -64,7 +64,9 @@ class RetrievalService:
                     "page_number": c.page_number,
                     "text": c.text,
                     "similarity_score": score,
-                    "semantic_score": score
+                    "semantic_score": score,
+                    "is_expanded": False,
+                    "context_distance": 0
                 })
             return results
 
@@ -124,6 +126,7 @@ class RetrievalService:
             )
             doc_name = chunk.document.name if chunk.document else "Unknown"
 
+            is_direct_hit = chunk.id in chunk_similarity_scores
             assembled_candidates.append({
                 "chunk_id": chunk.id,
                 "document_id": chunk.document_id,
@@ -132,7 +135,9 @@ class RetrievalService:
                 "page_number": chunk.page_number,
                 "text": chunk.text,
                 "similarity_score": final_sim_score,
-                "semantic_score": final_sim_score
+                "semantic_score": final_sim_score,
+                "is_expanded": not is_direct_hit,
+                "context_distance": 0 if is_direct_hit else 1
             })
 
         return assembled_candidates

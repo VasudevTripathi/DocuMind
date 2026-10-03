@@ -182,3 +182,44 @@ def test_full_dataset_population_and_evaluation(test_db, tmp_path):
     assert 1 in comp.delta_metrics_by_k
     assert 3 in comp.delta_metrics_by_k
     assert 5 in comp.delta_metrics_by_k
+
+def test_three_way_comparison_evaluation():
+    """Verify three-way comparison logic and report output."""
+    cases = [
+        EvaluationCase(
+            case_id="c-1",
+            query="test query",
+            relevant_document_id="doc-1",
+            relevant_chunk_ids=["chk-target"],
+            expected_answer_facts=["target fact"],
+            category="phrase_match"
+        )
+    ]
+    test_ds = EvaluationDataset(cases=cases)
+
+    # Baseline ranks target at rank 3
+    b_stub = StubRetriever({"test query": ["chk-dist-1", "chk-dist-2", "chk-target"]})
+    # Phase 8.1 ranks target at rank 2
+    p81_stub = StubRetriever({"test query": ["chk-dist-1", "chk-target", "chk-dist-2"]})
+    # Phase 8.3 ranks target at rank 1 due to phrase match
+    p83_stub = StubRetriever({"test query": ["chk-target", "chk-dist-1", "chk-dist-2"]})
+
+    evaluator = RAGEvaluator(k_values=[1, 3, 5])
+    b_res = evaluator.evaluate(b_stub, "Baseline", None, test_ds)
+    p81_res = evaluator.evaluate(p81_stub, "Phase 8.1", None, test_ds)
+    p83_res = evaluator.evaluate(p83_stub, "Phase 8.3", None, test_ds)
+
+    comp3 = evaluator.compare_three_way(b_res, p81_res, p83_res)
+    assert comp3.phase83.mrr == 1.0
+    assert comp3.phase81.mrr == 0.5
+    assert round(comp3.baseline.mrr, 4) == round(1.0 / 3.0, 4)
+
+    assert comp3.delta_mrr_83_vs_81 == 0.5
+    assert comp3.delta_83_vs_81[1]["hit_rate"] == 1.0
+
+    report = format_evaluation_report(comp3)
+    assert "BASELINE — Semantic Retrieval" in report
+    assert "PHASE 8.1 — Semantic + Lexical Retrieval" in report
+    assert "PHASE 8.3 — Advanced Multi-Signal Retrieval" in report
+    assert "DELTA (Phase 8.3 - Phase 8.1)" in report
+    assert "phrase_match" in report

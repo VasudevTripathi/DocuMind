@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Dict, List, Optional, Protocol, Sequence, Union, Tuple
 from collections import defaultdict
 from sqlalchemy.orm import Session
 
@@ -36,8 +36,10 @@ class BaselineRetriever:
     Query -> embedding -> FAISS semantic search -> top K.
     Strictly avoids:
       - lexical reranking
+      - phrase reranking
+      - term coverage
       - context expansion
-      - Phase 8.1 reranker
+      - Phase 8.1 / 8.3 rerankers
     """
     def __init__(
         self,
@@ -133,6 +135,24 @@ class ComparisonResult:
     delta_mrr: float
     delta_map: float
     category_deltas: Dict[str, Dict[str, float]]
+
+@dataclass
+class ThreeWayComparisonResult:
+    baseline: EvaluationResult
+    phase81: EvaluationResult
+    phase83: EvaluationResult
+    delta_81_vs_baseline: Dict[int, Dict[str, float]]
+    delta_83_vs_baseline: Dict[int, Dict[str, float]]
+    delta_83_vs_81: Dict[int, Dict[str, float]]
+    delta_mrr_81_vs_baseline: float
+    delta_mrr_83_vs_baseline: float
+    delta_mrr_83_vs_81: float
+    delta_map_81_vs_baseline: float
+    delta_map_83_vs_baseline: float
+    delta_map_83_vs_81: float
+    category_deltas_81_vs_baseline: Dict[str, Dict[str, float]]
+    category_deltas_83_vs_baseline: Dict[str, Dict[str, float]]
+    category_deltas_83_vs_81: Dict[str, Dict[str, float]]
 
 class RAGEvaluator:
     """Runs deterministic evaluation across evaluation cases for any given retriever."""
@@ -241,42 +261,79 @@ class RAGEvaluator:
             case_results=case_results
         )
 
+    def _calc_deltas(
+        self,
+        base_res: EvaluationResult,
+        target_res: EvaluationResult
+    ) -> Tuple[Dict[int, Dict[str, float]], float, float, Dict[str, Dict[str, float]]]:
+        delta_metrics_by_k: Dict[int, Dict[str, float]] = {}
+        for k in self.k_values:
+            b_m = base_res.metrics_by_k.get(k, {})
+            t_m = target_res.metrics_by_k.get(k, {})
+            delta_metrics_by_k[k] = {
+                "hit_rate": t_m.get("hit_rate", 0.0) - b_m.get("hit_rate", 0.0),
+                "recall": t_m.get("recall", 0.0) - b_m.get("recall", 0.0),
+                "precision": t_m.get("precision", 0.0) - b_m.get("precision", 0.0),
+            }
+
+        delta_mrr = target_res.mrr - base_res.mrr
+        delta_map = target_res.map_score - base_res.map_score
+
+        category_deltas: Dict[str, Dict[str, float]] = {}
+        all_cats = set(base_res.category_metrics.keys()).union(target_res.category_metrics.keys())
+        for cat in sorted(all_cats):
+            b_cat = base_res.category_metrics.get(cat, {})
+            t_cat = target_res.category_metrics.get(cat, {})
+            cat_delta: Dict[str, float] = {}
+            for k in self.k_values:
+                cat_delta[f"hit_at_{k}"] = t_cat.get(f"hit_at_{k}", 0.0) - b_cat.get(f"hit_at_{k}", 0.0)
+                cat_delta[f"recall_at_{k}"] = t_cat.get(f"recall_at_{k}", 0.0) - b_cat.get(f"recall_at_{k}", 0.0)
+            cat_delta["mrr"] = t_cat.get("mrr", 0.0) - b_cat.get("mrr", 0.0)
+            category_deltas[cat] = cat_delta
+
+        return delta_metrics_by_k, delta_mrr, delta_map, category_deltas
+
     def compare(
         self,
         baseline_result: EvaluationResult,
         enhanced_result: EvaluationResult
     ) -> ComparisonResult:
-        """Computes deltas (enhanced - baseline) across all metrics and categories."""
-        delta_metrics_by_k: Dict[int, Dict[str, float]] = {}
-        for k in self.k_values:
-            b_m = baseline_result.metrics_by_k.get(k, {})
-            e_m = enhanced_result.metrics_by_k.get(k, {})
-            delta_metrics_by_k[k] = {
-                "hit_rate": e_m.get("hit_rate", 0.0) - b_m.get("hit_rate", 0.0),
-                "recall": e_m.get("recall", 0.0) - b_m.get("recall", 0.0),
-                "precision": e_m.get("precision", 0.0) - b_m.get("precision", 0.0),
-            }
-
-        delta_mrr = enhanced_result.mrr - baseline_result.mrr
-        delta_map = enhanced_result.map_score - baseline_result.map_score
-
-        category_deltas: Dict[str, Dict[str, float]] = {}
-        all_cats = set(baseline_result.category_metrics.keys()).union(enhanced_result.category_metrics.keys())
-        for cat in sorted(all_cats):
-            b_cat = baseline_result.category_metrics.get(cat, {})
-            e_cat = enhanced_result.category_metrics.get(cat, {})
-            cat_delta: Dict[str, float] = {}
-            for k in self.k_values:
-                cat_delta[f"hit_at_{k}"] = e_cat.get(f"hit_at_{k}", 0.0) - b_cat.get(f"hit_at_{k}", 0.0)
-                cat_delta[f"recall_at_{k}"] = e_cat.get(f"recall_at_{k}", 0.0) - b_cat.get(f"recall_at_{k}", 0.0)
-            cat_delta["mrr"] = e_cat.get("mrr", 0.0) - b_cat.get("mrr", 0.0)
-            category_deltas[cat] = cat_delta
-
+        """2-way comparison for backwards compatibility."""
+        delta_k, delta_mrr, delta_map, cat_deltas = self._calc_deltas(baseline_result, enhanced_result)
         return ComparisonResult(
             baseline=baseline_result,
             enhanced=enhanced_result,
-            delta_metrics_by_k=delta_metrics_by_k,
+            delta_metrics_by_k=delta_k,
             delta_mrr=delta_mrr,
             delta_map=delta_map,
-            category_deltas=category_deltas
+            category_deltas=cat_deltas
+        )
+
+    def compare_three_way(
+        self,
+        baseline: EvaluationResult,
+        phase81: EvaluationResult,
+        phase83: EvaluationResult
+    ) -> ThreeWayComparisonResult:
+        """3-way comparison evaluating Baseline vs Phase 8.1 vs Phase 8.3."""
+        d_k_81_b, d_mrr_81_b, d_map_81_b, c_81_b = self._calc_deltas(baseline, phase81)
+        d_k_83_b, d_mrr_83_b, d_map_83_b, c_83_b = self._calc_deltas(baseline, phase83)
+        d_k_83_81, d_mrr_83_81, d_map_83_81, c_83_81 = self._calc_deltas(phase81, phase83)
+
+        return ThreeWayComparisonResult(
+            baseline=baseline,
+            phase81=phase81,
+            phase83=phase83,
+            delta_81_vs_baseline=d_k_81_b,
+            delta_83_vs_baseline=d_k_83_b,
+            delta_83_vs_81=d_k_83_81,
+            delta_mrr_81_vs_baseline=d_mrr_81_b,
+            delta_mrr_83_vs_baseline=d_mrr_83_b,
+            delta_mrr_83_vs_81=d_mrr_83_81,
+            delta_map_81_vs_baseline=d_map_81_b,
+            delta_map_83_vs_baseline=d_map_83_b,
+            delta_map_83_vs_81=d_map_83_81,
+            category_deltas_81_vs_baseline=c_81_b,
+            category_deltas_83_vs_baseline=c_83_b,
+            category_deltas_83_vs_81=c_83_81
         )

@@ -125,10 +125,34 @@ EVALUATION_DOCUMENTS: List[SyntheticDocument] = [
                 "text": "Adverse events exceeding grade 3 severity must be reported to the Institutional Review Board within 24 hours of onset."
             }
         ]
+    ),
+    SyntheticDocument(
+        id="doc-eval-distractor",
+        name="Network_Routing_and_Facility_Operations.pdf",
+        chunks=[
+            {
+                "id": "chk-dist-0",
+                "chunk_index": 0,
+                "page_number": 1,
+                "text": "The network gateway uses an interval timer of 250 milliseconds to probe upstream BGP peer routers."
+            },
+            {
+                "id": "chk-dist-1",
+                "chunk_index": 1,
+                "page_number": 1,
+                "text": "Vault token renewal policies specify that expired authentication keys trigger automatic security alerts to the security operations center."
+            },
+            {
+                "id": "chk-dist-2",
+                "chunk_index": 2,
+                "page_number": 2,
+                "text": "Disaster restoration drills for office building electrical generators require annual certification by city inspectors."
+            }
+        ]
     )
 ]
 
-# Deterministic evaluation cases covering all required categories
+# Deterministic evaluation cases covering all required and advanced categories (24 cases total)
 EVALUATION_CASES: List[EvaluationCase] = [
     # 1. direct_fact
     EvaluationCase(
@@ -232,6 +256,110 @@ EVALUATION_CASES: List[EvaluationCase] = [
     EvaluationCase(
         case_id="case-12-no-worldcup",
         query="Who was the top goal scorer in the 1998 football World Cup tournament?",
+        relevant_document_id=None,
+        relevant_chunk_ids=[],
+        expected_answer_facts=[],
+        category="no_context"
+    ),
+
+    # 7. phrase_match (Advanced)
+    EvaluationCase(
+        case_id="case-13-phrase-heartbeat-timeout",
+        query="heartbeat interval is set to 250 milliseconds with a timeout threshold",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-0"],
+        expected_answer_facts=["heartbeat interval is set to 250 milliseconds"],
+        category="phrase_match"
+    ),
+    EvaluationCase(
+        case_id="case-14-phrase-wal-archiving",
+        query="immutable S3 storage bucket WAL archiving",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-0"],
+        expected_answer_facts=["immutable S3 storage bucket"],
+        category="phrase_match"
+    ),
+    EvaluationCase(
+        case_id="case-15-phrase-gdpr-art32",
+        query="GDPR Article 32 analytics pipelines pseudonymized",
+        relevant_document_id="doc-eval-privacy",
+        relevant_chunk_ids=["chk-privacy-0"],
+        expected_answer_facts=["GDPR Article 32"],
+        category="phrase_match"
+    ),
+
+    # 8. term_coverage (Advanced)
+    EvaluationCase(
+        case_id="case-16-cov-cluster-raft-standby",
+        query="consecutive heartbeats missed secondary standby Raft consensus protocol",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-1"],
+        expected_answer_facts=["Raft consensus protocol", "secondary standby node"],
+        category="term_coverage"
+    ),
+    EvaluationCase(
+        case_id="case-17-cov-backup-rto-restore",
+        query="dry-run restoration validation Recovery Time Objective under 15 minutes",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-2"],
+        expected_answer_facts=["Recovery Time Objective of under 15 minutes"],
+        category="term_coverage"
+    ),
+    EvaluationCase(
+        case_id="case-18-cov-hipaa-audit-logs",
+        query="Audit logs access health records retained seven years HIPAA guidelines",
+        relevant_document_id="doc-eval-privacy",
+        relevant_chunk_ids=["chk-privacy-2"],
+        expected_answer_facts=["retained for seven years", "HIPAA compliance guidelines"],
+        category="term_coverage"
+    ),
+
+    # 9. distractor (Advanced)
+    EvaluationCase(
+        case_id="case-19-dist-cluster-vs-bgp",
+        query="What is the primary controller node cluster heartbeat interval?",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-0"],
+        expected_answer_facts=["250 milliseconds across all controller nodes"],
+        category="distractor"
+    ),
+    EvaluationCase(
+        case_id="case-20-dist-backup-vault-vs-token",
+        query="How are database dump archives encrypted using HashiCorp Vault keys?",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-3"],
+        expected_answer_facts=["AES-256-GCM managed keys from HashiCorp Vault"],
+        category="distractor"
+    ),
+    EvaluationCase(
+        case_id="case-21-dist-rto-vs-generator",
+        query="What are the dry-run restoration validation requirements for database disaster recovery?",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-2"],
+        expected_answer_facts=["Recovery Time Objective of under 15 minutes"],
+        category="distractor"
+    ),
+
+    # 10. Additional category verification
+    EvaluationCase(
+        case_id="case-22-fact-erasure-window",
+        query="Within how many calendar days may data subjects request data erasure under GDPR?",
+        relevant_document_id="doc-eval-privacy",
+        relevant_chunk_ids=["chk-privacy-1"],
+        expected_answer_facts=["thirty calendar days"],
+        category="direct_fact"
+    ),
+    EvaluationCase(
+        case_id="case-23-sem-split-brain",
+        query="During a network split, which element arbitrates to resolve dual leader conflicts?",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-2"],
+        expected_answer_facts=["quorum witness node", "decisive tie-breaker"],
+        category="semantic_match"
+    ),
+    EvaluationCase(
+        case_id="case-24-no-photosynthesis",
+        query="What wavelengths of light are absorbed by chlorophyll A during plant photosynthesis?",
         relevant_document_id=None,
         relevant_chunk_ids=[],
         expected_answer_facts=[],

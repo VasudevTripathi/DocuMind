@@ -14,6 +14,12 @@ class SourceChunk(BaseModel):
     page_number: Optional[int] = None
     score: float
     text: Optional[str] = None
+    semantic_score: Optional[float] = None
+    lexical_score: Optional[float] = None
+    rerank_score: Optional[float] = None
+    phrase_score: Optional[float] = None
+    coverage_score: Optional[float] = None
+    context_score: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 

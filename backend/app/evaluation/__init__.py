@@ -19,6 +19,7 @@ from app.evaluation.evaluator import (
     CaseResult,
     EvaluationResult,
     ComparisonResult,
+    ThreeWayComparisonResult,
 )
 from app.evaluation.report import format_evaluation_report
 
@@ -38,5 +39,6 @@ __all__ = [
     "CaseResult",
     "EvaluationResult",
     "ComparisonResult",
+    "ThreeWayComparisonResult",
     "format_evaluation_report",
 ]

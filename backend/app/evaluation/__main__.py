@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
 from app.services.embedding_service import embedding_service
-from app.services.reranker import reranker
+from app.services.reranker import RetrievalReranker
 from app.services.retrieval_service import RetrievalService
 from app.services.vector_store import VectorStore
 from app.evaluation.dataset import get_evaluation_dataset
@@ -16,11 +16,17 @@ from app.evaluation.report import format_evaluation_report
 
 def run_evaluation() -> int:
     """
-    Local CLI execution entry point for DocuMind RAG Evaluation.
+    Local CLI execution entry point for DocuMind RAG Evaluation (Phase 8.3).
     1. Initializes an isolated in-memory SQLite database and temporary VectorStore
-    2. Seeds the synthetic multi-document evaluation dataset
-    3. Evaluates Baseline Semantic Retrieval vs Phase 8.1 Enhanced Retrieval
-    4. Computes comparative metrics and deltas
+    2. Seeds the synthetic multi-document evaluation dataset (24 cases across 5 docs)
+    3. Evaluates 3 retrieval architectures:
+       - BASELINE: Semantic-only retrieval (FAISS similarity)
+       - PHASE 8.1: Semantic + unigram lexical reranking + context expansion
+       - PHASE 8.3: Enhanced multi-signal reranking (semantic + lexical + exact phrase + query coverage + context)
+    4. Computes comparative metrics and deltas:
+       - Phase 8.1 vs Baseline
+       - Phase 8.3 vs Baseline
+       - Phase 8.3 vs Phase 8.1
     5. Prints formatted human-readable report
     6. Ensures clean teardown with zero persistent side-effects
     """
@@ -43,17 +49,26 @@ def run_evaluation() -> int:
             embedding_service=embedding_service
         )
 
-        # Baseline retriever (Semantic search only, no reranking, no expansion)
+        # 1. Baseline retriever (Semantic search only, no reranking, no expansion)
         baseline_retriever = BaselineRetriever(
             store=eval_vector_store,
             embedder=embedding_service
         )
 
-        # Current Phase 8.1 retriever (Candidate retrieval + Context expansion + Lexical/Semantic reranking)
-        enhanced_retriever = RetrievalService(
+        # 2. Phase 8.1 retriever (Context expansion + unigram lexical reranking)
+        phase81_reranker = RetrievalReranker(semantic_weight=0.75, lexical_weight=0.25)
+        phase81_retriever = RetrievalService(
             store=eval_vector_store,
             embedder=embedding_service,
-            rerank_service=reranker
+            rerank_service=phase81_reranker
+        )
+
+        # 3. Phase 8.3 retriever (Multi-signal reranking: semantic + lexical + phrase + coverage + context)
+        phase83_reranker = RetrievalReranker()
+        phase83_retriever = RetrievalService(
+            store=eval_vector_store,
+            embedder=embedding_service,
+            rerank_service=phase83_reranker
         )
 
         evaluator = RAGEvaluator(k_values=[1, 3, 5])
@@ -65,14 +80,26 @@ def run_evaluation() -> int:
             dataset=dataset
         )
 
-        enhanced_result = evaluator.evaluate(
-            retriever=enhanced_retriever,
+        phase81_result = evaluator.evaluate(
+            retriever=phase81_retriever,
             retriever_name="Phase 8.1 (Enhanced Retrieval)",
             db=db,
             dataset=dataset
         )
 
-        comparison = evaluator.compare(baseline_result, enhanced_result)
+        phase83_result = evaluator.evaluate(
+            retriever=phase83_retriever,
+            retriever_name="Phase 8.3 (Multi-Signal Retrieval)",
+            db=db,
+            dataset=dataset
+        )
+
+        comparison = evaluator.compare_three_way(
+            baseline=baseline_result,
+            phase81=phase81_result,
+            phase83=phase83_result
+        )
+
         report_text = format_evaluation_report(comparison)
         print(report_text)
         return 0

@@ -15,6 +15,12 @@ class SearchResultItem(BaseModel):
     text: str
     similarity_score: float
     score: float
+    semantic_score: Optional[float] = None
+    lexical_score: Optional[float] = None
+    rerank_score: Optional[float] = None
+    phrase_score: Optional[float] = None
+    coverage_score: Optional[float] = None
+    context_score: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 
