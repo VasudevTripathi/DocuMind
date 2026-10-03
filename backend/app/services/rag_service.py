@@ -91,9 +91,19 @@ class RAGService:
             if (c.get("score") or c.get("similarity_score") or 0.0) > 0.05
         ]
 
-        # 2. No-context guard: If no usable chunks retrieved, do NOT call LLM
-        if not usable_chunks:
-            logger.info(f"[RAGService] No usable chunks retrieved for query: '{cleaned_query[:40]}'. Returning fallback.")
+        # 2. No-context guard: If no usable chunks retrieved or all evidence is irrelevant, do NOT call LLM
+        q_tokens = set(self.grounding_service.reranker.tokenize(cleaned_query))
+        has_any_overlap = any(
+            bool(q_tokens & set(self.grounding_service.reranker.tokenize(c.get("text", ""))))
+            for c in usable_chunks
+        )
+        top_score = max(
+            ((c.get("score") or c.get("similarity_score") or 0.0) for c in usable_chunks),
+            default=0.0
+        )
+
+        if not usable_chunks or (top_score < 0.10 and not has_any_overlap):
+            logger.info(f"[RAGService] No usable or relevant chunks for query: '{cleaned_query[:40]}'. Returning safe fallback.")
             fallback_grounding = GroundingEvaluation(
                 status=GroundingStatus.INSUFFICIENT_EVIDENCE,
                 confidence=0.0,
@@ -126,9 +136,14 @@ class RAGService:
             evidence_chunks=usable_chunks
         )
 
-        # 6. Format sources
-        if answer.strip() == NO_CONTEXT_FALLBACK:
+        # 6. Format sources and enforce abstention when answer is unsupported (Task 5)
+        if (
+            answer.strip() == NO_CONTEXT_FALLBACK
+            or (grounding_eval.status == GroundingStatus.INSUFFICIENT_EVIDENCE and not grounding_eval.supported_claims)
+        ):
+            answer = NO_CONTEXT_FALLBACK
             sources = []
+            grounding_eval.source_chunk_ids = []
         else:
             sources = [
                 {

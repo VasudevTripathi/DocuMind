@@ -245,3 +245,221 @@ def test_step_16_controlled_grounding_scenarios():
         evidence_chunks=conflicting_ev
     )
     assert res_q5.status == GroundingStatus.CONFLICTING_EVIDENCE
+
+
+# =========================================================================
+# Phase 8.5 Task 7: 20 Adversarial Grounding Tests
+# =========================================================================
+
+def test_adversarial_01_correct_number_vs_wrong_number():
+    evidence = [{"chunk_id": "c1", "text": "Cluster heartbeat interval is 250 milliseconds.", "score": 0.85}]
+    res_correct = grounding_service.verify_answer("heartbeat", "Heartbeat interval is 250 milliseconds.", evidence)
+    assert res_correct.status == GroundingStatus.SUPPORTED
+
+    res_wrong = grounding_service.verify_answer("heartbeat", "Heartbeat interval is 500 milliseconds.", evidence)
+    assert res_wrong.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert len(res_wrong.unsupported_claims) == 1
+
+def test_adversarial_02_correct_unit_vs_wrong_unit():
+    evidence = [{"chunk_id": "c1", "text": "Log archives are retained for 7 years.", "score": 0.85}]
+    res_unit_err = grounding_service.verify_answer("retention", "Log archives are retained for 7 days.", evidence)
+    assert res_unit_err.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert len(res_unit_err.unsupported_claims) == 1
+
+def test_adversarial_03_two_numbers_in_one_claim():
+    evidence = [{
+        "chunk_id": "c1",
+        "text": "Heartbeat interval is set to 250 milliseconds with a timeout threshold of 1500 milliseconds.",
+        "score": 0.90
+    }]
+    # Both numbers correct
+    res_both_ok = grounding_service.verify_answer(
+        "heartbeat timeout",
+        "Heartbeat interval is 250 ms with a timeout threshold of 1500 ms.",
+        evidence
+    )
+    assert res_both_ok.status == GroundingStatus.SUPPORTED
+
+    # One number wrong
+    res_one_wrong = grounding_service.verify_answer(
+        "heartbeat timeout",
+        "Heartbeat interval is 250 ms with a timeout threshold of 3000 ms.",
+        evidence
+    )
+    assert res_one_wrong.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert len(res_one_wrong.unsupported_claims) == 1
+
+def test_adversarial_04_same_unit_different_attributes():
+    # 250 ms (interval) vs 1500 ms (timeout) - both use milliseconds but are distinct attributes
+    evidence = [{
+        "chunk_id": "c1",
+        "text": "The primary cluster heartbeat interval is set to 250 milliseconds with a timeout threshold of 1500 milliseconds across all controller nodes.",
+        "score": 0.90
+    }]
+    conflicts = grounding_service.detect_evidence_conflicts("What is the heartbeat interval and timeout?", evidence)
+    assert conflicts is None
+
+def test_adversarial_05_same_attribute_conflicting_values():
+    evidence = [
+        {"chunk_id": "doc1", "text": "Mandatory archive retention is 7 years.", "score": 0.90},
+        {"chunk_id": "doc2", "text": "Mandatory archive retention is 10 years.", "score": 0.90}
+    ]
+    res = grounding_service.verify_answer(
+        "What is the mandatory archive retention?",
+        "Archive retention is 7 years.",
+        evidence
+    )
+    assert res.status == GroundingStatus.CONFLICTING_EVIDENCE
+    assert res.conflicts is not None
+    assert len(res.conflicts) >= 1
+
+def test_adversarial_06_support_distributed_across_two_chunks():
+    evidence = [
+        {"chunk_id": "c1", "text": "Database snapshots are scheduled weekly on Sundays at 02:00 UTC.", "score": 0.85},
+        {"chunk_id": "c2", "text": "Recovery Time Objective for restoration is guaranteed under 15 minutes.", "score": 0.80}
+    ]
+    # Compound claim combining information from both chunks
+    claim = "Database snapshots are scheduled weekly at 02:00 UTC and recovery time objective is under 15 minutes."
+    res = grounding_service.verify_answer("snapshots and rto", claim, evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert "c1" in res.source_chunk_ids and "c2" in res.source_chunk_ids
+
+def test_adversarial_07_unsupported_second_sentence():
+    evidence = [{"chunk_id": "c1", "text": "Heartbeat interval is set to 250 milliseconds.", "score": 0.85}]
+    answer = "Heartbeat interval is set to 250 milliseconds. Failover activates after two consecutive missed heartbeats."
+    res = grounding_service.verify_answer("heartbeat", answer, evidence)
+    assert res.status == GroundingStatus.PARTIALLY_SUPPORTED
+    assert len(res.supported_claims) == 1
+    assert len(res.unsupported_claims) == 1
+    assert "250 milliseconds" in res.supported_claims[0]
+
+def test_adversarial_08_partially_supported_answer():
+    evidence = [{"chunk_id": "c1", "text": "Audit logs must be retained for seven years under HIPAA guidelines.", "score": 0.88}]
+    answer = "Audit logs must be retained for seven years. Logs are uploaded to an unencrypted public FTP server."
+    res = grounding_service.verify_answer("audit logs", answer, evidence)
+    assert res.status == GroundingStatus.PARTIALLY_SUPPORTED
+    assert len(res.supported_claims) == 1
+    assert len(res.unsupported_claims) == 1
+
+def test_adversarial_09_paraphrased_supported_answer():
+    evidence = [{"chunk_id": "c1", "text": "The network gateway uses an interval timer of 250 milliseconds to probe upstream BGP peer routers.", "score": 0.85}]
+    paraphrase = "The network gateway router probes upstream BGP peers with a 250 ms timer."
+    res = grounding_service.verify_answer("bgp gateway probe", paraphrase, evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+
+def test_adversarial_10_distractor_chunk_with_overlapping_vocabulary():
+    evidence = [
+        {"chunk_id": "target", "text": "The primary cluster heartbeat interval is set to 250 milliseconds across all controller nodes.", "score": 0.90},
+        {"chunk_id": "distractor", "text": "The network gateway uses an interval timer of 250 milliseconds to probe upstream BGP peer routers.", "score": 0.60}
+    ]
+    answer = "The primary cluster controller heartbeat interval is 250 milliseconds."
+    res = grounding_service.verify_answer("cluster controller heartbeat", answer, evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert "target" in res.source_chunk_ids
+
+def test_adversarial_11_empty_answer():
+    evidence = [{"chunk_id": "c1", "text": "Sample text", "score": 0.80}]
+    res = grounding_service.verify_answer("test query", "", evidence)
+    assert res.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert res.confidence == 0.0
+
+def test_adversarial_12_very_short_answer():
+    evidence = [{"chunk_id": "c1", "text": "Audit logs must be retained for seven years under HIPAA guidelines.", "score": 0.90}]
+    res = grounding_service.verify_answer("retention", "Seven years under HIPAA guidelines.", evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert res.confidence >= 0.60
+
+def test_adversarial_13_bullet_point_answer():
+    evidence = [
+        {"chunk_id": "c1", "text": "Heartbeat interval is set to 250 milliseconds.", "score": 0.90},
+        {"chunk_id": "c2", "text": "Leadership election uses Raft consensus protocol.", "score": 0.85}
+    ]
+    answer = (
+        "### Cluster Settings\n"
+        "- Heartbeat interval is set to 250 milliseconds\n"
+        "- Leadership election uses Raft consensus protocol"
+    )
+    res = grounding_service.verify_answer("cluster settings", answer, evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert len(res.supported_claims) == 2
+
+def test_adversarial_14_multi_sentence_answer():
+    evidence = [
+        {"chunk_id": "c1", "text": "The incremental backup job executes every 6 hours using WAL archiving to an immutable S3 storage bucket.", "score": 0.88},
+        {"chunk_id": "c2", "text": "Full database snapshots are scheduled weekly on Sundays at 02:00 UTC with point-in-time recovery retention guaranteed for 35 days.", "score": 0.86}
+    ]
+    answer = (
+        "Incremental backups execute every 6 hours using WAL archiving. "
+        "Full database snapshots are scheduled weekly on Sundays at 02:00 UTC. "
+        "Point-in-time recovery retention is guaranteed for 35 days."
+    )
+    res = grounding_service.verify_answer("backup schedule", answer, evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert len(res.supported_claims) >= 2
+
+def test_adversarial_15_no_context_question():
+    evidence = [{"chunk_id": "c1", "text": "Heartbeat interval is 250 ms.", "score": 0.85}]
+    res = grounding_service.verify_answer(
+        "Who won the 1998 World Cup?",
+        "The answer could not be found in the provided documents.",
+        evidence
+    )
+    assert res.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert res.confidence == 0.0
+
+def test_adversarial_16_duplicate_source_chunks():
+    evidence = [
+        {"chunk_id": "c1", "text": "Retention period is 7 years.", "score": 0.85},
+        {"chunk_id": "c1", "text": "Retention period is 7 years.", "score": 0.85}
+    ]
+    res = grounding_service.verify_answer("retention", "Retention period is 7 years.", evidence)
+    assert res.status == GroundingStatus.SUPPORTED
+    assert res.conflicts is None
+
+def test_adversarial_17_conflicting_evidence_with_one_irrelevant_numerical_value():
+    evidence = [
+        {"chunk_id": "c_ret1", "text": "Mandatory archive retention is 7 years.", "score": 0.90},
+        {"chunk_id": "c_ret2", "text": "Mandatory archive retention is 10 years.", "score": 0.88},
+        {"chunk_id": "c_port", "text": "Cluster broadcasts over UDP port 7946.", "score": 0.40}
+    ]
+    res = grounding_service.verify_answer(
+        "What is the mandatory archive retention?",
+        "Archive retention is 7 years.",
+        evidence
+    )
+    assert res.status == GroundingStatus.CONFLICTING_EVIDENCE
+    assert "7946" not in str(res.conflicts)
+
+def test_adversarial_18_dates_with_different_values():
+    evidence = [
+        {"chunk_id": "d1", "text": "Cold storage compliance policy established on 2024-01-15.", "score": 0.90},
+        {"chunk_id": "d2", "text": "Cold storage compliance policy established on 2025-06-01.", "score": 0.88}
+    ]
+    res = grounding_service.verify_answer(
+        "When was the cold storage compliance policy established?",
+        "The policy was established on 2024-01-15.",
+        evidence
+    )
+    assert res.status == GroundingStatus.CONFLICTING_EVIDENCE
+
+def test_adversarial_19_percentage_mismatch():
+    evidence = [{"chunk_id": "c1", "text": "Daily cache buffer allocation is configured to 25% of total system RAM.", "score": 0.90}]
+    res_wrong = grounding_service.verify_answer(
+        "What percentage of RAM is allocated to cache?",
+        "Cache buffer allocation is configured to 50% of system RAM.",
+        evidence
+    )
+    assert res_wrong.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert len(res_wrong.unsupported_claims) == 1
+
+def test_adversarial_20_storage_size_mismatch():
+    evidence = [{"chunk_id": "c1", "text": "Active transaction logs are allocated 500 GB of NVMe SSD storage.", "score": 0.90}]
+    # 2 TB instead of 500 GB
+    res_wrong = grounding_service.verify_answer(
+        "How much storage is allocated for transaction logs?",
+        "Active transaction logs are allocated 2 TB of storage.",
+        evidence
+    )
+    assert res_wrong.status == GroundingStatus.INSUFFICIENT_EVIDENCE
+    assert len(res_wrong.unsupported_claims) == 1
+

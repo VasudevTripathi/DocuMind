@@ -15,6 +15,7 @@ class EvaluationCase:
     relevant_chunk_ids: List[str]
     expected_answer_facts: List[str]
     category: str
+    expected_status: Optional[str] = None
 
 @dataclass
 class SyntheticDocument:
@@ -147,6 +148,36 @@ EVALUATION_DOCUMENTS: List[SyntheticDocument] = [
                 "chunk_index": 2,
                 "page_number": 2,
                 "text": "Disaster restoration drills for office building electrical generators require annual certification by city inspectors."
+            }
+        ]
+    ),
+    SyntheticDocument(
+        id="doc-eval-storage",
+        name="Storage_and_Retention_Schedule.pdf",
+        chunks=[
+            {
+                "id": "chk-storage-0",
+                "chunk_index": 0,
+                "page_number": 1,
+                "text": "Active transaction logs are allocated 500 GB of NVMe SSD storage with a hard quota limit of 2 TB across all replica volumes."
+            },
+            {
+                "id": "chk-storage-1",
+                "chunk_index": 1,
+                "page_number": 1,
+                "text": "The mandatory compliance archive retention for tax records was established on 2024-01-15 requiring cold storage for 7 years."
+            },
+            {
+                "id": "chk-storage-2",
+                "chunk_index": 2,
+                "page_number": 2,
+                "text": "Emergency operational update: The compliance archive retention for tax records requires cold storage for 10 years."
+            },
+            {
+                "id": "chk-storage-3",
+                "chunk_index": 3,
+                "page_number": 2,
+                "text": "Daily cache buffer allocation is configured to 25% of total system RAM, up to a maximum threshold of 8 GB."
             }
         ]
     )
@@ -363,7 +394,164 @@ EVALUATION_CASES: List[EvaluationCase] = [
         relevant_document_id=None,
         relevant_chunk_ids=[],
         expected_answer_facts=[],
-        category="no_context"
+        category="no_context",
+        expected_status="INSUFFICIENT_EVIDENCE"
+    ),
+
+    # 10. numeric_consistency (Phase 8.5)
+    EvaluationCase(
+        case_id="case-25-num-quota",
+        query="What is the NVMe SSD storage allocation and hard quota limit for active transaction logs?",
+        relevant_document_id="doc-eval-storage",
+        relevant_chunk_ids=["chk-storage-0"],
+        expected_answer_facts=["500 GB", "2 TB"],
+        category="numeric_consistency",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-26-num-cache-ram",
+        query="What percentage of system RAM and gigabyte limit is allocated to the daily cache buffer?",
+        relevant_document_id="doc-eval-storage",
+        relevant_chunk_ids=["chk-storage-3"],
+        expected_answer_facts=["25%", "8 GB"],
+        category="numeric_consistency",
+        expected_status="SUPPORTED"
+    ),
+
+    # 11. contradiction (Phase 8.5)
+    EvaluationCase(
+        case_id="case-27-contra-tax-retention",
+        query="What is the compliance archive retention period for tax records?",
+        relevant_document_id="doc-eval-storage",
+        relevant_chunk_ids=["chk-storage-1", "chk-storage-2"],
+        expected_answer_facts=["7 years", "10 years"],
+        category="contradiction",
+        expected_status="CONFLICTING_EVIDENCE"
+    ),
+    EvaluationCase(
+        case_id="case-28-contra-tax-policy",
+        query="What is the mandatory cold storage retention period for tax records?",
+        relevant_document_id="doc-eval-storage",
+        relevant_chunk_ids=["chk-storage-1", "chk-storage-2"],
+        expected_answer_facts=["7 years", "10 years"],
+        category="contradiction",
+        expected_status="CONFLICTING_EVIDENCE"
+    ),
+
+    # 12. multi_chunk_support (Phase 8.5)
+    EvaluationCase(
+        case_id="case-29-multi-snapshot-rto",
+        query="What is the full database snapshot schedule and the disaster recovery RTO threshold?",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-1", "chk-backup-2"],
+        expected_answer_facts=["weekly on Sundays at 02:00 UTC", "under 15 minutes"],
+        category="multi_chunk_support",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-30-multi-heartbeat-raft",
+        query="What is the cluster heartbeat interval and which protocol governs failover elections?",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-0", "chk-cluster-1"],
+        expected_answer_facts=["250 milliseconds", "Raft consensus protocol"],
+        category="multi_chunk_support",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-31-multi-backup-vault",
+        query="How frequently does incremental backup run and how are database archives encrypted?",
+        relevant_document_id="doc-eval-backup",
+        relevant_chunk_ids=["chk-backup-0", "chk-backup-3"],
+        expected_answer_facts=["every 6 hours", "AES-256-GCM managed keys from HashiCorp Vault"],
+        category="multi_chunk_support",
+        expected_status="SUPPORTED"
+    ),
+
+    # 13. distractor_numeric (Phase 8.5)
+    EvaluationCase(
+        case_id="case-32-dist-bgp-interval",
+        query="What is the network gateway interval timer to probe upstream BGP peer routers?",
+        relevant_document_id="doc-eval-distractor",
+        relevant_chunk_ids=["chk-dist-0"],
+        expected_answer_facts=["250 milliseconds"],
+        category="distractor_numeric",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-33-dist-cluster-interval",
+        query="How many milliseconds is the cluster heartbeat interval, not the BGP router probe?",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-0"],
+        expected_answer_facts=["250 milliseconds"],
+        category="distractor_numeric",
+        expected_status="SUPPORTED"
+    ),
+
+    # 14. abstention (Phase 8.5)
+    EvaluationCase(
+        case_id="case-34-abs-quantum-encryption",
+        query="What quantum key distribution protocol is used for inter-datacenter fiber links?",
+        relevant_document_id=None,
+        relevant_chunk_ids=[],
+        expected_answer_facts=[],
+        category="abstention",
+        expected_status="INSUFFICIENT_EVIDENCE"
+    ),
+    EvaluationCase(
+        case_id="case-35-abs-apollo-mission",
+        query="What was the date of the first manned Apollo moon landing?",
+        relevant_document_id=None,
+        relevant_chunk_ids=[],
+        expected_answer_facts=[],
+        category="abstention",
+        expected_status="INSUFFICIENT_EVIDENCE"
+    ),
+    EvaluationCase(
+        case_id="case-36-abs-cellular-mitosis",
+        query="How many chromosomes are separated during cellular mitosis anaphase?",
+        relevant_document_id=None,
+        relevant_chunk_ids=[],
+        expected_answer_facts=[],
+        category="abstention",
+        expected_status="INSUFFICIENT_EVIDENCE"
+    ),
+
+    # 15. entity_consistency (Phase 8.5)
+    EvaluationCase(
+        case_id="case-37-ent-tax-date",
+        query="On what date was the compliance archive retention policy for tax records established?",
+        relevant_document_id="doc-eval-storage",
+        relevant_chunk_ids=["chk-storage-1"],
+        expected_answer_facts=["2024-01-15"],
+        category="entity_consistency",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-38-ent-raft-port",
+        query="Over which UDP port and log file path are Raft elections broadcasted?",
+        relevant_document_id="doc-eval-cluster",
+        relevant_chunk_ids=["chk-cluster-3"],
+        expected_answer_facts=["UDP port 7946", "/var/log/cluster/raft.log"],
+        category="entity_consistency",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-39-ent-gdpr-article",
+        query="Which GDPR article specifies PII pseudonymization for analytics pipelines?",
+        relevant_document_id="doc-eval-privacy",
+        relevant_chunk_ids=["chk-privacy-0"],
+        expected_answer_facts=["GDPR Article 32"],
+        category="entity_consistency",
+        expected_status="SUPPORTED"
+    ),
+    EvaluationCase(
+        case_id="case-40-ent-clinical-severity",
+        query="What grade severity must adverse events exceed to require IRB reporting?",
+        relevant_document_id="doc-eval-clinical",
+        relevant_chunk_ids=["chk-clinical-1"],
+        expected_answer_facts=["grade 3 severity"],
+        category="entity_consistency",
+        expected_status="SUPPORTED"
     )
 ]
 

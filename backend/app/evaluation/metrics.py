@@ -160,3 +160,20 @@ def no_context_rejection_rate(rejected_count: int, total_no_context: int) -> flo
     if total_no_context <= 0:
         return 1.0
     return float(rejected_count) / float(total_no_context)
+
+def conflict_detection_rate(detected_conflicts: int, total_conflict_cases: int) -> float:
+    """
+    Conflict Detection Rate: correctly detected conflicting evidence cases / total conflicting cases.
+    """
+    if total_conflict_cases <= 0:
+        return 1.0
+    return float(detected_conflicts) / float(total_conflict_cases)
+
+def partial_support_detection_rate(detected_partial: int, total_partial_cases: int) -> float:
+    """
+    Partial Support Detection Rate: correctly flagged partial-support answers / total partial cases.
+    """
+    if total_partial_cases <= 0:
+        return 1.0
+    return float(detected_partial) / float(total_partial_cases)
+

@@ -139,7 +139,9 @@ def test_grounding_metrics():
         grounded_answer_rate,
         unsupported_claim_rate,
         numeric_consistency_rate,
-        no_context_rejection_rate
+        no_context_rejection_rate,
+        conflict_detection_rate,
+        partial_support_detection_rate
     )
 
     # 1. Grounded answer rate
@@ -160,3 +162,13 @@ def test_grounding_metrics():
     assert no_context_rejection_rate(3, 3) == 1.0
     assert no_context_rejection_rate(2, 4) == 0.5
     assert no_context_rejection_rate(0, 0) == 1.0
+
+    # 5. Conflict detection rate
+    assert conflict_detection_rate(2, 2) == 1.0
+    assert conflict_detection_rate(1, 2) == 0.5
+    assert conflict_detection_rate(0, 0) == 1.0
+
+    # 6. Partial support detection rate
+    assert partial_support_detection_rate(2, 2) == 1.0
+    assert partial_support_detection_rate(1, 2) == 0.5
+    assert partial_support_detection_rate(0, 0) == 1.0

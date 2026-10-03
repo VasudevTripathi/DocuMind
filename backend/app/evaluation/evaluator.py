@@ -20,6 +20,8 @@ from app.evaluation.metrics import (
     unsupported_claim_rate,
     numeric_consistency_rate,
     no_context_rejection_rate,
+    conflict_detection_rate,
+    partial_support_detection_rate,
 )
 from app.services.grounding_service import grounding_service
 
@@ -139,6 +141,8 @@ class AnswerEvaluationResult:
     unsupported_claim_rate: float
     numeric_consistency_rate: float
     no_context_rejection_rate: float
+    conflict_detection_rate: float = 1.0
+    partial_support_detection_rate: float = 1.0
     category_summary: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
@@ -372,6 +376,10 @@ class RAGEvaluator:
 
         total_no_context = 0
         rejected_no_context = 0
+        total_contradictions = 0
+        detected_contradictions = 0
+        total_partial = 0
+        detected_partial = 0
         cat_summary: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "supported": 0})
 
         for case in dataset.cases:
@@ -383,10 +391,23 @@ class RAGEvaluator:
             if status == "SUPPORTED":
                 cat_summary[case.category]["supported"] += 1
 
-            if case.category == "no_context":
+            if case.category in ("no_context", "abstention"):
                 total_no_context += 1
                 if status == "INSUFFICIENT_EVIDENCE" or "could not be found" in ans_res.get("answer", "").lower():
                     rejected_no_context += 1
+            elif case.category == "contradiction":
+                total_contradictions += 1
+                if status == "CONFLICTING_EVIDENCE" or len(grounding.get("contradictions", [])) > 0:
+                    detected_contradictions += 1
+            elif case.category == "partial_support":
+                total_partial += 1
+                if status == "PARTIALLY_SUPPORTED":
+                    detected_partial += 1
+                statuses.append(status)
+                sup = len(grounding.get("supported_claims", []))
+                unsup = len(grounding.get("unsupported_claims", []))
+                supported_counts.append(sup)
+                unsupported_counts.append(unsup)
             else:
                 statuses.append(status)
                 sup = len(grounding.get("supported_claims", []))
@@ -406,6 +427,8 @@ class RAGEvaluator:
         ucr = unsupported_claim_rate(supported_counts, unsupported_counts)
         ncr = numeric_consistency_rate(consistent_numeric_claims, total_numeric_claims)
         nrr = no_context_rejection_rate(rejected_no_context, total_no_context)
+        cdr = conflict_detection_rate(detected_contradictions, total_contradictions)
+        psr = partial_support_detection_rate(detected_partial, total_partial)
 
         return AnswerEvaluationResult(
             total_answers=len(dataset.cases),
@@ -413,5 +436,7 @@ class RAGEvaluator:
             unsupported_claim_rate=ucr,
             numeric_consistency_rate=ncr,
             no_context_rejection_rate=nrr,
+            conflict_detection_rate=cdr,
+            partial_support_detection_rate=psr,
             category_summary=dict(cat_summary)
         )
