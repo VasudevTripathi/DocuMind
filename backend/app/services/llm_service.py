@@ -151,6 +151,31 @@ class LLMService:
 
         return self._fallback_provider.analyze_document(text)
 
+    def explain_comparison(
+        self,
+        doc_a_name: str,
+        doc_b_name: str,
+        differences_data: Dict[str, Any]
+    ) -> GenerationResult:
+        """
+        Synthesizes an executive summary of detected differences between Document A and Document B.
+        Attempts Gemini synthesis if available; seamlessly falls back to heuristic summary on error or offline mode.
+        """
+        if self.has_active_api_key and self._primary_provider:
+            try:
+                logger.info(f"[LLMService] Synthesizing comparison explanation via Gemini ({self.model})...")
+                return self._primary_provider.explain_comparison(doc_a_name, doc_b_name, differences_data)
+            except Exception as e:
+                logger.warning(
+                    f"[LLMService] Gemini comparison explanation failed ({e}). "
+                    f"Employing deterministic heuristic fallback.",
+                    exc_info=False
+                )
+
+        logger.info("[LLMService] Utilizing deterministic heuristic comparison explanation.")
+        return self._fallback_provider.explain_comparison(doc_a_name, doc_b_name, differences_data)
+
+
     # Backward compatibility helper
     def prepare_representative_text(self, text: str, max_words: int = MAX_LLM_INPUT_WORDS) -> str:
         words = text.split()
