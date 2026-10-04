@@ -1,0 +1,210 @@
+.grounding-panel {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: rgba(15, 15, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all var(--transition-normal);
+}
+
+.grounding-panel.has-conflicts {
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.08);
+}
+
+.grounding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  cursor: pointer;
+  user-select: none;
+}
+
+.grounding-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.grounding-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.grounding-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.grounding-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.grounding-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.grounding-confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+}
+
+.confidence-label {
+  color: var(--text-tertiary);
+}
+
+.confidence-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.grounding-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.grounding-chunk-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.grounding-expand-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.grounding-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.grounding-conflict-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+}
+
+.conflict-alert-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--danger);
+  margin-bottom: 2px;
+}
+
+.conflict-alert-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.grounding-body {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.grounding-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.grounding-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.grounding-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grounding-list-item {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--accent-primary);
+  padding: 6px var(--space-3);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.grounding-list-item.conflict-item {
+  border-left-color: var(--danger);
+  background: rgba(239, 68, 68, 0.05);
+  color: var(--text-primary);
+}
+
+.grounding-more-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding-left: var(--space-3);
+  font-style: italic;
+}
+
+.grounding-footer-telemetry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: var(--font-size-xs);
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.telemetry-label {
+  color: var(--text-tertiary);
+}
+
+.telemetry-value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
