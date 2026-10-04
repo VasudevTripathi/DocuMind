@@ -76,6 +76,15 @@ export const documentService = {
   },
 
   /**
+   * Alias for getDocumentById
+   * @param {string} id
+   * @returns {Promise<Object>}
+   */
+  async getDocument(id) {
+    return this.getDocumentById(id);
+  },
+
+  /**
    * Uploads a document file to FastAPI backend.
    * @param {File} file 
    * @param {string} [category='General']
@@ -127,7 +136,11 @@ export const documentService = {
     if (docOrFile && docOrFile.file instanceof File) {
       return this.uploadDocument(docOrFile.file, docOrFile.category || category);
     }
-    // If passed a mock/plain object with a file or already created, throw friendly instruction
+    if (docOrFile && typeof docOrFile === 'object' && docOrFile.id) {
+      notifyChange();
+      return docOrFile;
+    }
+    // If passed a non-file without an id, throw friendly instruction
     throw new Error('A valid File must be provided for document upload.');
   },
 
@@ -217,6 +230,26 @@ export const documentService = {
         throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);
       }
       throw err;
+    }
+  },
+
+  /**
+   * Retrieves all document chunks for deep inspection.
+   * @param {string} id
+   * @returns {Promise<Array>}
+   */
+  async getDocumentChunks(id) {
+    try {
+      const response = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}/chunks`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!response.ok) {
+        return [];
+      }
+      return await response.json();
+    } catch {
+      return [];
     }
   },
 

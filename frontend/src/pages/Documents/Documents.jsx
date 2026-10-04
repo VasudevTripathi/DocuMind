@@ -81,8 +81,10 @@ export const Documents = () => {
     });
   }, [documents, searchQuery, selectedType, selectedStatus]);
 
-  const handleUploadSuccess = async (newDoc) => {
-    await saveDocument(newDoc);
+  const handleUploadSuccess = async () => {
+    if (refetch) {
+      await refetch();
+    }
   };
 
   const handleDeleteConfirm = async (id) => {

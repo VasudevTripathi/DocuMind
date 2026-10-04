@@ -6,6 +6,8 @@ import { Documents } from './pages/Documents/Documents';
 import { Landing } from './pages/Landing/Landing';
 import { Chat } from './pages/Chat/Chat';
 import { Compare } from './pages/Compare/Compare';
+import { Analytics } from './pages/Analytics/Analytics';
+import { Workspace } from './pages/Workspace/Workspace';
 import { Placeholder } from './pages/Placeholder';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -20,10 +22,10 @@ function App() {
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/documents" element={<Documents />} />
-            <Route path="/workspace/:id" element={<Placeholder title="Workspace" description="Analyze and extract insights from your document." />} />
+            <Route path="/workspace/:id" element={<Workspace />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/search" element={<Placeholder title="Semantic Search" description="Find exact matches and conceptual similarities." />} />
-            <Route path="/analytics" element={<Placeholder title="Analytics" description="Insights across your document library." />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/calendar" element={<Placeholder title="Calendar" description="Document events and schedules." />} />
             <Route path="/knowledge-base" element={<Placeholder title="Knowledge Base" description="Your connected knowledge sources." />} />

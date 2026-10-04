@@ -133,3 +133,29 @@ def get_document_file(
         media_type=document.mime_type or "application/octet-stream",
         filename=document.original_filename
     )
+
+@router.get("/{document_id}/chunks")
+def get_document_chunks(
+    document_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns all chunks belonging to a document ordered by chunk_index.
+    """
+    document = DocumentService.get_document_by_id(db=db, document_id=document_id)
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document with ID '{document_id}' not found."
+        )
+    return [
+        {
+            "id": c.id,
+            "document_id": c.document_id,
+            "chunk_index": c.chunk_index,
+            "page_number": c.page_number,
+            "word_count": c.word_count,
+            "text": c.text
+        }
+        for c in document.chunks
+    ]

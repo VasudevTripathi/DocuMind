@@ -73,7 +73,12 @@ class LLMService:
 
     @property
     def has_active_api_key(self) -> bool:
-        return bool(self.api_key and self.api_key.strip())
+        if not self.api_key or not self.api_key.strip():
+            return False
+        k = self.api_key.strip().lower()
+        if "your_gemini_api_key" in k or "your_api_key" in k or "placeholder" in k or k.startswith("your_"):
+            return False
+        return True
 
     @property
     def active_provider_name(self) -> str:

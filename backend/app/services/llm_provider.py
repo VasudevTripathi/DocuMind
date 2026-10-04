@@ -479,6 +479,7 @@ class HeuristicFallbackProvider(BaseLLMProvider):
         if not context or not context.strip():
             return "The answer could not be found in the provided documents."
 
+        q_lower = (question or "").lower()
         stop_words = {
             "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
             "is", "are", "was", "were", "do", "does", "did", "the", "a", "an", "in",
@@ -491,7 +492,15 @@ class HeuristicFallbackProvider(BaseLLMProvider):
             for w in question.split()
             if w.lower().strip("?,.!") not in stop_words and len(w) > 2
         ]
-        if not q_words:
+
+        overview_keywords = [
+            "finding", "findings", "highlight", "highlights", "summary", "summarize",
+            "overview", "about", "key point", "key points", "main point", "main points",
+            "topic", "topics", "content", "what does", "describe"
+        ]
+        is_overview = any(k in q_lower for k in overview_keywords)
+
+        if not q_words and not is_overview:
             return "The answer could not be found in the provided documents."
 
         content_blocks = []
@@ -519,6 +528,8 @@ class HeuristicFallbackProvider(BaseLLMProvider):
                     continue
                 cleaned_lines.append(line)
             clean_block = " ".join(cleaned_lines).strip()
+            # Clean repetitive page header banners if present
+            clean_block = re.sub(r'ANNEXURE-\d+[^\n]+Page \d+ of \d+', '', clean_block, flags=re.IGNORECASE)
 
             sentences = re.split(r"(?<=[.!?])\s+", clean_block)
             for s in sentences:
@@ -527,15 +538,40 @@ class HeuristicFallbackProvider(BaseLLMProvider):
                     continue
                 s_lower = s_clean.lower()
                 match_count = sum(1 for qw in q_words if qw in s_lower)
-                min_required = 2 if len(q_words) >= 3 else 1
-                if match_count >= min_required:
-                    scored_sentences.append((match_count, s_clean))
+                
+                if match_count >= 1:
+                    # Specific query match bonus
+                    score = float(match_count) * 2.0
+                    # Proportional coverage boost
+                    if q_words:
+                        score += (match_count / len(q_words))
+                    scored_sentences.append((score, s_clean))
+                elif is_overview and len(s_clean) >= 25:
+                    # Substantive sentence for broad finding/summary query
+                    inf_score = 0.5
+                    if any(t in s_lower for t in [
+                        "course", "title", "task", "project", "approach", "objective",
+                        "finding", "recommendation", "topic", "agile", "report", "summary",
+                        "policy", "requirement", "specification", "purpose", "result"
+                    ]):
+                        inf_score = 2.0
+                    scored_sentences.append((inf_score, s_clean))
 
         if not scored_sentences:
             return "The answer could not be found in the provided documents."
 
-        scored_sentences.sort(key=lambda x: (-x[0], len(x[1])))
-        top_sentences = [s for _, s in scored_sentences[:2]]
+        scored_sentences.sort(key=lambda x: (-x[0], -len(x[1])))
+        # Select up to top 2 distinct sentences
+        seen_texts = set()
+        top_sentences = []
+        for _, s in scored_sentences:
+            norm = s[:40].lower()
+            if norm not in seen_texts:
+                seen_texts.add(norm)
+                top_sentences.append(s)
+            if len(top_sentences) >= 2:
+                break
+
         return " ".join(top_sentences)
 
     def analyze_document(self, text: str) -> Dict[str, Any]:
