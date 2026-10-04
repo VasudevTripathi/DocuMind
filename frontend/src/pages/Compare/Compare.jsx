@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   GitCompare, ArrowLeftRight, CheckCircle2, AlertTriangle, 
   ShieldAlert, PlusCircle, MinusCircle, RefreshCw, FileText, 
@@ -30,32 +30,71 @@ export const Compare = () => {
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'conflicts', 'modifications', 'additions', 'removals', 'common'
 
-  // Dropdown search filters
+  // Dropdown search filters and refs
   const [searchA, setSearchA] = useState('');
   const [searchB, setSearchB] = useState('');
   const [isDropdownAOpen, setIsDropdownAOpen] = useState(false);
   const [isDropdownBOpen, setIsDropdownBOpen] = useState(false);
+  const dropdownRefA = useRef(null);
+  const dropdownRefB = useRef(null);
+
+  // Close dropdowns on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRefA.current && !dropdownRefA.current.contains(event.target)) {
+        setIsDropdownAOpen(false);
+      }
+      if (dropdownRefB.current && !dropdownRefB.current.contains(event.target)) {
+        setIsDropdownBOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsDropdownAOpen(false);
+        setIsDropdownBOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Deduplicated documents
+  const uniqueDocuments = useMemo(() => {
+    const map = new Map();
+    (documents || []).forEach(doc => {
+      if (doc && doc.id && !map.has(doc.id)) {
+        map.set(doc.id, doc);
+      }
+    });
+    return Array.from(map.values());
+  }, [documents]);
 
   // Selected document objects
-  const docA = useMemo(() => documents.find(d => d.id === docAId) || null, [documents, docAId]);
-  const docB = useMemo(() => documents.find(d => d.id === docBId) || null, [documents, docBId]);
+  const docA = useMemo(() => uniqueDocuments.find(d => d.id === docAId) || null, [uniqueDocuments, docAId]);
+  const docB = useMemo(() => uniqueDocuments.find(d => d.id === docBId) || null, [uniqueDocuments, docBId]);
 
   // Filtered document options for dropdowns
   const availableDocsA = useMemo(() => {
-    if (!searchA.trim()) return documents;
+    if (!searchA.trim()) return uniqueDocuments;
     const q = searchA.toLowerCase().trim();
-    return documents.filter(d => d.name.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q));
-  }, [documents, searchA]);
+    return uniqueDocuments.filter(d => (d.name || '').toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q));
+  }, [uniqueDocuments, searchA]);
 
   const availableDocsB = useMemo(() => {
-    if (!searchB.trim()) return documents;
+    if (!searchB.trim()) return uniqueDocuments;
     const q = searchB.toLowerCase().trim();
-    return documents.filter(d => d.name.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q));
-  }, [documents, searchB]);
+    return uniqueDocuments.filter(d => (d.name || '').toLowerCase().includes(q) || (d.category || '').toLowerCase().includes(q));
+  }, [uniqueDocuments, searchB]);
 
   // Validation
   const isSameDoc = Boolean(docAId && docBId && docAId === docBId);
-  const canCompare = Boolean(docAId && docBId && !isSameDoc && !isComparing);
+  const canCompare = Boolean(docA && docB && !isSameDoc && !isComparing);
 
   // Swap Documents A <-> B
   const handleSwap = () => {
@@ -115,6 +154,28 @@ export const Compare = () => {
         </div>
       </header>
 
+      {/* Document Loading Error Banner */}
+      {docsError && (
+        <div className="compare-error-banner" role="alert">
+          <AlertCircle size={18} className="text-danger shrink-0" />
+          <div className="error-banner-content">
+            <span className="error-banner-title">Document Library Error</span>
+            <p className="error-banner-desc">{docsError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty Library State Banner */}
+      {!isLoadingDocs && !docsError && uniqueDocuments.length === 0 && (
+        <div className="compare-empty-library-banner">
+          <Info size={18} className="text-secondary shrink-0" />
+          <div className="empty-library-content">
+            <span className="empty-library-title">No Documents Available</span>
+            <p className="empty-library-desc">You need at least two documents in your library to run comparisons. Upload documents in the Document Library first.</p>
+          </div>
+        </div>
+      )}
+
       {/* Setup / Document Selector Panel */}
       <GlassPanel className="compare-setup-panel">
         <form onSubmit={handleRunComparison} className="compare-form">
@@ -126,10 +187,21 @@ export const Compare = () => {
                 <span className="selector-role">Baseline Reference</span>
               </div>
 
-              <div className="doc-select-container">
+              <div ref={dropdownRefA} className="doc-select-container">
                 <div 
                   className={`doc-select-trigger ${isDropdownAOpen ? 'is-open' : ''} ${!docA ? 'is-empty' : ''}`}
                   onClick={() => !isComparing && setIsDropdownAOpen(!isDropdownAOpen)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      !isComparing && setIsDropdownAOpen(!isDropdownAOpen);
+                    }
+                  }}
+                  role="combobox"
+                  aria-expanded={isDropdownAOpen}
+                  aria-haspopup="listbox"
+                  aria-label="Select baseline document A"
+                  tabIndex={0}
                 >
                   {docA ? (
                     <div className="selected-doc-display">
@@ -150,7 +222,7 @@ export const Compare = () => {
                 </div>
 
                 {isDropdownAOpen && (
-                  <div className="doc-dropdown-menu">
+                  <div className="doc-dropdown-menu" role="listbox" onMouseDown={(e) => e.stopPropagation()}>
                     <div className="dropdown-search-box">
                       <Search size={14} className="dropdown-search-icon" />
                       <input 
@@ -171,6 +243,21 @@ export const Compare = () => {
                             onClick={() => {
                               setDocAId(d.id);
                               setIsDropdownAOpen(false);
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setDocAId(d.id);
+                              setIsDropdownAOpen(false);
+                            }}
+                            role="option"
+                            aria-selected={d.id === docAId}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setDocAId(d.id);
+                                setIsDropdownAOpen(false);
+                              }
                             }}
                           >
                             <FileText size={15} className="dropdown-item-icon" />
@@ -210,10 +297,21 @@ export const Compare = () => {
                 <span className="selector-role">Comparison Target</span>
               </div>
 
-              <div className="doc-select-container">
+              <div ref={dropdownRefB} className="doc-select-container">
                 <div 
                   className={`doc-select-trigger ${isDropdownBOpen ? 'is-open' : ''} ${!docB ? 'is-empty' : ''}`}
                   onClick={() => !isComparing && setIsDropdownBOpen(!isDropdownBOpen)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      !isComparing && setIsDropdownBOpen(!isDropdownBOpen);
+                    }
+                  }}
+                  role="combobox"
+                  aria-expanded={isDropdownBOpen}
+                  aria-haspopup="listbox"
+                  aria-label="Select comparison document B"
+                  tabIndex={0}
                 >
                   {docB ? (
                     <div className="selected-doc-display">
@@ -234,7 +332,7 @@ export const Compare = () => {
                 </div>
 
                 {isDropdownBOpen && (
-                  <div className="doc-dropdown-menu">
+                  <div className="doc-dropdown-menu" role="listbox" onMouseDown={(e) => e.stopPropagation()}>
                     <div className="dropdown-search-box">
                       <Search size={14} className="dropdown-search-icon" />
                       <input 
@@ -255,6 +353,21 @@ export const Compare = () => {
                             onClick={() => {
                               setDocBId(d.id);
                               setIsDropdownBOpen(false);
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setDocBId(d.id);
+                              setIsDropdownBOpen(false);
+                            }}
+                            role="option"
+                            aria-selected={d.id === docBId}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setDocBId(d.id);
+                                setIsDropdownBOpen(false);
+                              }
                             }}
                           >
                             <FileText size={15} className="dropdown-item-icon" />
@@ -419,13 +532,12 @@ export const Compare = () => {
                 </div>
                 <div className="summary-header-right">
                   <span className="provider-tag">
-                    {comparisonResult.provider === 'gemini' ? (
-                      <>
-                        <Zap size={12} className="text-accent-secondary" /> Gemini 2.5 Flash
-                      </>
-                    ) : (
-                      'Deterministic Heuristic'
-                    )}
+                    <Zap size={12} className="text-accent-secondary" />
+                    {comparisonResult.provider 
+                      ? (comparisonResult.provider === 'gemini' 
+                          ? (comparisonResult.model || 'Gemini') 
+                          : comparisonResult.provider.replace(/_/g, ' ').toUpperCase())
+                      : 'LOCAL ENGINE'}
                   </span>
                 </div>
               </div>

@@ -144,9 +144,9 @@ export const GroundingPanel = ({ grounding, provider, model }) => {
 
           <div className="grounding-footer-telemetry">
             <div className="telemetry-item">
-              <span className="telemetry-label">Analysis Synthesis:</span>
+              <span className="telemetry-label">Analysis Provider:</span>
               <span className="telemetry-value">
-                {provider === 'gemini' ? 'Google Gemini 2.5 Flash' : (provider || 'Local Heuristic Fallback')}
+                {provider ? provider.replace(/_/g, ' ').toUpperCase() : 'LOCAL HEURISTIC'}
               </span>
             </div>
             {model && (

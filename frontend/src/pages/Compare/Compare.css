@@ -474,6 +474,36 @@
   color: var(--text-primary);
 }
 
+/* Empty Library Banner */
+.compare-empty-library-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-lg);
+  color: var(--accent-secondary);
+}
+
+.empty-library-content {
+  flex: 1;
+}
+
+.empty-library-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.empty-library-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* Loading Panel */
 .compare-loading-panel {
   display: flex;

@@ -44,6 +44,11 @@ export const SourceEvidence = ({ sources = [], label = 'Source Evidence', varian
                       <Hash size={11} /> Page {src.page_number}
                     </span>
                   )}
+                  {src.score !== null && src.score !== undefined && (
+                    <span className="source-meta-tag">
+                      Score: {typeof src.score === 'number' ? src.score.toFixed(2) : src.score}
+                    </span>
+                  )}
                 </div>
               </div>
 
