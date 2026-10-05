@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -16,9 +16,11 @@ class DocumentAnalysis(Base):
     category = Column(String(100), nullable=False)
     classification_confidence = Column(Float, nullable=False, default=0.0)
     word_count = Column(Integer, nullable=False, default=0)
+    provider = Column(String(50), nullable=True, default="gemini")
+    quota_exceeded = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     document = relationship("Document", back_populates="analysis")
 
     def __repr__(self):
-        return f"<DocumentAnalysis id={self.id} doc_id={self.document_id} category='{self.category}'>"
+        return f"<DocumentAnalysis id={self.id} doc_id={self.document_id} category='{self.category}' provider='{self.provider}'>"

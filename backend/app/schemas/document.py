@@ -14,6 +14,7 @@ class DocumentResponse(BaseModel):
     id: str
     name: str
     type: str
+    file_type: Optional[str] = None
     size: str
     sizeBytes: int
     uploadedAt: str
@@ -31,6 +32,7 @@ class DocumentResponse(BaseModel):
             id=doc.id,
             name=doc.name,
             type=doc.file_type,
+            file_type=doc.file_type,
             size=format_file_size(doc.size_bytes),
             sizeBytes=doc.size_bytes,
             uploadedAt=uploaded_iso,

@@ -107,32 +107,54 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
         db.flush()
 
         # Save analysis
+        summary_text = llm_result.get("summary") if isinstance(llm_result, dict) else ""
+        if not summary_text or not summary_text.strip():
+            summary_text = "Executive summary unavailable."
+
         analysis_record = DocumentAnalysis(
             document_id=doc.id,
-            summary=llm_result["summary"],
+            summary=summary_text,
             category=predicted_category,
             classification_confidence=confidence,
-            word_count=words
+            word_count=words,
+            provider=llm_result.get("provider", "gemini"),
+            quota_exceeded=llm_result.get("quota_exceeded", False)
         )
         db.add(analysis_record)
 
         # Save findings
-        for f in llm_result.get("key_findings", []):
-            finding_record = DocumentFinding(
-                document_id=doc.id,
-                finding_text=f["text"],
-                priority=f.get("priority", "medium")
-            )
-            db.add(finding_record)
+        raw_findings = llm_result.get("key_findings", []) if isinstance(llm_result, dict) else []
+        for f in raw_findings:
+            if isinstance(f, dict):
+                f_text = f.get("text") or f.get("finding") or str(f)
+                f_priority = f.get("priority", "medium")
+            else:
+                f_text = str(f).strip()
+                f_priority = "medium"
+            if f_text:
+                finding_record = DocumentFinding(
+                    document_id=doc.id,
+                    finding_text=f_text,
+                    priority=f_priority
+                )
+                db.add(finding_record)
 
         # Save entities
-        for e in llm_result.get("entities", []):
-            entity_record = DocumentEntity(
-                document_id=doc.id,
-                name=e["name"],
-                entity_type=e.get("type", "CONCEPT")
-            )
-            db.add(entity_record)
+        raw_entities = llm_result.get("entities", []) if isinstance(llm_result, dict) else []
+        for e in raw_entities:
+            if isinstance(e, dict):
+                e_name = e.get("name") or e.get("entity") or ""
+                e_type = e.get("type") or e.get("entity_type") or "CONCEPT"
+            else:
+                e_name = str(e).strip()
+                e_type = "CONCEPT"
+            if e_name:
+                entity_record = DocumentEntity(
+                    document_id=doc.id,
+                    name=e_name,
+                    entity_type=e_type
+                )
+                db.add(entity_record)
 
         # 13. Set status = 'analyzed'
         doc.status = "analyzed"

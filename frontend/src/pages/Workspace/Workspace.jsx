@@ -67,6 +67,36 @@ export const Workspace = () => {
     }
   }, [id]);
 
+  // Poll if document is still pending or processing in background
+  useEffect(() => {
+    let timer;
+    if (id && document && (document.status === 'processing' || document.status === 'pending')) {
+      timer = setInterval(async () => {
+        try {
+          const updatedDoc = await documentService.getDocumentById(id);
+          if (updatedDoc?.status === 'analyzed') {
+            setDocument(updatedDoc);
+            const [analysisData, chunksData] = await Promise.all([
+              documentService.getDocumentAnalysis(id).catch(() => null),
+              documentService.getDocumentChunks(id).catch(() => [])
+            ]);
+            if (analysisData) setAnalysis(analysisData);
+            if (chunksData?.length) setChunks(chunksData);
+            clearInterval(timer);
+          } else if (updatedDoc?.status === 'failed') {
+            setDocument(updatedDoc);
+            clearInterval(timer);
+          }
+        } catch {
+          // Continue polling silently
+        }
+      }, 2500);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [id, document?.status]);
+
   // Initialize or fetch conversation for this document
   useEffect(() => {
     const initChat = async () => {
@@ -275,6 +305,35 @@ export const Workspace = () => {
       {activeTab === 'overview' && (
         <div className="overview-grid">
           <div className="overview-main-col">
+            {/* Quota Exhausted Warning Banner */}
+            {Boolean(
+              analysis?.quota_exceeded 
+              || analysis?.quotaExceeded 
+              || analysis?.provider === 'quota_exhausted' 
+              || (analysis?.summary && (analysis.summary.includes('quota limit') || analysis.summary.includes('429 RESOURCE_EXHAUSTED') || analysis.summary.includes('quota exceeded')))
+            ) && (
+              <div style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <AlertCircle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#f87171', marginBottom: '4px', fontSize: '14px' }}>
+                    Gemini API Daily Quota Limit Reached (429 RESOURCE_EXHAUSTED)
+                  </div>
+                  <div style={{ fontSize: '13px', lineHeight: 1.4, color: '#e2e8f0' }}>
+                    Your Google AI Studio daily free request quota was exhausted. The summary and key findings below were extracted using <strong>local offline sentence heuristics</strong> rather than Gemini LLM synthesis.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* AI Summary */}
             <GlassPanel className="insight-card">
               <div className="insight-card-header">
@@ -300,15 +359,15 @@ export const Workspace = () => {
                   <BookOpen size={18} className="text-warning" /> Key Findings & Takeaways
                 </span>
                 <span className="text-secondary text-xs">
-                  {analysis?.findings?.length || 0} extracted points
+                  {(analysis?.findings || analysis?.keyFindings || []).length} extracted points
                 </span>
               </div>
               <div className="findings-list">
-                {analysis?.findings && analysis.findings.length > 0 ? (
-                  analysis.findings.map((f, i) => (
+                {(analysis?.findings || analysis?.keyFindings) && (analysis.findings || analysis.keyFindings).length > 0 ? (
+                  (analysis.findings || analysis.keyFindings).map((f, i) => (
                     <div key={i} className="finding-item">
                       <span className="finding-bullet">•</span>
-                      <span className="finding-text">{f.text || f}</span>
+                      <span className="finding-text">{typeof f === 'object' && f !== null ? (f.text || f.finding || JSON.stringify(f)) : String(f)}</span>
                     </div>
                   ))
                 ) : (
@@ -328,8 +387,8 @@ export const Workspace = () => {
                 <div className="entities-cloud-box">
                   {analysis.entities.map((e, idx) => (
                     <span key={idx} className="entity-tag">
-                      <span>{e.name}</span>
-                      <span className="entity-type-badge">{e.entity_type}</span>
+                      <span>{typeof e === 'object' && e !== null ? (e.name || e.text || '') : String(e)}</span>
+                      <span className="entity-type-badge">{e.entity_type || e.type || 'CONCEPT'}</span>
                     </span>
                   ))}
                 </div>
@@ -344,11 +403,11 @@ export const Workspace = () => {
               <div className="details-list">
                 <div className="details-row">
                   <span className="details-label">Format</span>
-                  <span className="details-val">{document.file_type.toUpperCase()}</span>
+                  <span className="details-val">{(document.file_type || document.type || 'TXT').toUpperCase()}</span>
                 </div>
                 <div className="details-row">
                   <span className="details-label">Category</span>
-                  <span className="details-val">{document.category}</span>
+                  <span className="details-val">{document.category || 'General'}</span>
                 </div>
                 <div className="details-row">
                   <span className="details-label">Total Chunks</span>
@@ -363,14 +422,25 @@ export const Workspace = () => {
                 <div className="details-row">
                   <span className="details-label">Confidence</span>
                   <span className="details-val">
-                    {analysis?.classification_confidence 
-                      ? `${Math.round(analysis.classification_confidence * 100)}%` 
+                    {(analysis?.classification_confidence ?? analysis?.classificationConfidence) != null
+                      ? `${Math.round((analysis.classification_confidence ?? analysis.classificationConfidence) * 100)}%` 
                       : 'N/A'}
                   </span>
                 </div>
                 <div className="details-row">
                   <span className="details-label">MIME Type</span>
                   <span className="details-val">{document.mime_type || 'application/pdf'}</span>
+                </div>
+                <div className="details-row">
+                  <span className="details-label">AI Engine</span>
+                  <span className="details-val" style={{
+                    color: Boolean(analysis?.quota_exceeded || analysis?.quotaExceeded || analysis?.provider === 'quota_exhausted') ? '#f87171' : 'inherit',
+                    fontWeight: Boolean(analysis?.quota_exceeded || analysis?.quotaExceeded || analysis?.provider === 'quota_exhausted') ? 600 : 400
+                  }}>
+                    {Boolean(analysis?.quota_exceeded || analysis?.quotaExceeded || analysis?.provider === 'quota_exhausted')
+                      ? 'Local Fallback (Quota Exceeded)'
+                      : (analysis?.provider === 'gemini' ? 'Google Gemini' : 'Offline Rules')}
+                  </span>
                 </div>
               </div>
               <Button 

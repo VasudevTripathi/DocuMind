@@ -95,11 +95,11 @@ class GeminiProvider(BaseLLMProvider):
         self,
         api_key: str,
         model: Optional[str] = None,
-        timeout: float = 15.0,
+        timeout: float = 30.0,
         max_retries: int = 2
     ):
         self.api_key = api_key
-        self.model = model or settings.LLM_MODEL or "gemini-2.5-flash"
+        self.model = model or settings.LLM_MODEL or "gemini-flash-latest"
         self.timeout = timeout
         self.max_retries = max_retries
         self._client = None
@@ -114,6 +114,38 @@ class GeminiProvider(BaseLLMProvider):
                 http_options=types.HttpOptions(timeout=int(self.timeout * 1000))
             )
         return self._client
+
+    def _call_model(self, contents, config):
+        """
+        Executes generate_content with the primary model. If a 429 RESOURCE_EXHAUSTED
+        quota violation is encountered, automatically falls back to an available backup model
+        ('gemini-flash-latest' or 'gemini-flash-lite-latest') before exhausting options.
+        """
+        try:
+            return self.client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=config
+            )
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                fallback_models = ["gemini-flash-latest", "gemini-flash-lite-latest"]
+                for fb_model in fallback_models:
+                    if fb_model != self.model:
+                        try:
+                            logger.warning(
+                                f"[GeminiProvider] Quota reached for '{self.model}'. "
+                                f"Attempting automatic failover to '{fb_model}'."
+                            )
+                            return self.client.models.generate_content(
+                                model=fb_model,
+                                contents=contents,
+                                config=config
+                            )
+                        except Exception as fb_err:
+                            logger.warning(f"[GeminiProvider] Failover to '{fb_model}' failed ({fb_err}).")
+            raise
 
     def _build_system_prompt(self, is_conversational: bool = False) -> str:
         base_prompt = (
@@ -168,8 +200,7 @@ class GeminiProvider(BaseLLMProvider):
         )
 
         start_time = time.perf_counter()
-        response = self.client.models.generate_content(
-            model=self.model,
+        response = self._call_model(
             contents=user_prompt,
             config=config
         )
@@ -241,8 +272,7 @@ class GeminiProvider(BaseLLMProvider):
         )
 
         start_time = time.perf_counter()
-        response = self.client.models.generate_content(
-            model=self.model,
+        response = self._call_model(
             contents=contents,
             config=config
         )
@@ -311,8 +341,7 @@ class GeminiProvider(BaseLLMProvider):
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
         )
 
-        response = self.client.models.generate_content(
-            model=self.model,
+        response = self._call_model(
             contents=prompt,
             config=config
         )
@@ -407,8 +436,7 @@ class GeminiProvider(BaseLLMProvider):
         )
 
         start_time = time.perf_counter()
-        response = self.client.models.generate_content(
-            model=self.model,
+        response = self._call_model(
             contents=user_prompt,
             config=config
         )

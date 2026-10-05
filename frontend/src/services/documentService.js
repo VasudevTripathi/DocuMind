@@ -197,7 +197,28 @@ export const documentService = {
         throw new Error(errorData.detail || `Failed to fetch analysis for document ${id}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      const findingsList = data.findings || data.keyFindings || data.key_findings || [];
+      const entitiesList = (data.entities || []).map(e => ({
+        ...e,
+        entity_type: e.entity_type || e.type || 'CONCEPT',
+        type: e.type || e.entity_type || 'CONCEPT'
+      }));
+
+      return {
+        ...data,
+        findings: findingsList,
+        keyFindings: findingsList,
+        key_findings: findingsList,
+        entities: entitiesList,
+        classification_confidence: data.classification_confidence ?? data.classificationConfidence ?? 0,
+        classificationConfidence: data.classificationConfidence ?? data.classification_confidence ?? 0,
+        word_count: data.word_count ?? data.wordCount ?? 0,
+        wordCount: data.wordCount ?? data.word_count ?? 0,
+        provider: data.provider || 'gemini',
+        quota_exceeded: Boolean(data.quota_exceeded || data.quotaExceeded || data.provider === 'quota_exhausted'),
+        warning: data.warning || null,
+      };
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         throw new Error('Backend server is currently unavailable. Please verify the backend is running at ' + API_BASE);

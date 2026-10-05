@@ -43,14 +43,14 @@ class LLMService:
                 or settings.OPENAI_API_KEY
                 or os.environ.get("OPENAI_API_KEY")
             )
-        self.model = model or settings.LLM_MODEL or "gemini-2.5-flash"
+        self.model = model or settings.LLM_MODEL or "gemini-flash-latest"
         self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
         self._primary_provider = primary_provider
         if self._primary_provider is None and self.api_key:
             self._primary_provider = GeminiProvider(
                 api_key=self.api_key,
                 model=self.model,
-                timeout=15.0,
+                timeout=30.0,
                 max_retries=2
             )
 
@@ -147,14 +147,31 @@ class LLMService:
         """
         Extracts summary, key findings, and named entities.
         Falls back to rule-based heuristic extraction if Gemini call fails.
+        Explicitly tags quota_exceeded and provider status if 429 quota exhaustion occurs.
         """
         if self.has_active_api_key and self._primary_provider:
             try:
-                return self._primary_provider.analyze_document(text)
+                res = self._primary_provider.analyze_document(text)
+                res["provider"] = "gemini"
+                res["quota_exceeded"] = False
+                return res
             except Exception as e:
+                err_str = str(e)
+                is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
                 logger.warning(f"[LLMService] Gemini document analysis failed ({e}). Employing fallback.")
+                fallback = self._fallback_provider.analyze_document(text)
+                fallback["provider"] = "quota_exhausted" if is_quota else "heuristic_fallback"
+                fallback["quota_exceeded"] = is_quota
+                if is_quota:
+                    notice = "⚠️ [Notice: Google Gemini API quota limit reached (429 RESOURCE_EXHAUSTED). The following summary was extracted using offline heuristics instead of LLM generation.]\n\n"
+                    fallback["summary"] = notice + fallback.get("summary", "")
+                    fallback["warning"] = "Google Gemini daily quota limit reached (429 RESOURCE_EXHAUSTED). Showing offline extractive analysis until quota resets."
+                return fallback
 
-        return self._fallback_provider.analyze_document(text)
+        fallback = self._fallback_provider.analyze_document(text)
+        fallback["provider"] = "heuristic_fallback"
+        fallback["quota_exceeded"] = False
+        return fallback
 
     def explain_comparison(
         self,
