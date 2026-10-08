@@ -43,12 +43,18 @@ class RetrievalService:
         db: Session,
         candidate_chunks: List[DocumentChunk],
         chunk_similarity_scores: Dict[str, float],
-        radius: int
+        radius: int,
+        query: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Expands context by adding neighboring chunks (chunk_index - radius to chunk_index + radius)
-        strictly within the same document boundaries.
-        Never crosses document boundaries, never produces negative indices, and never duplicates chunks.
+        Conditionally expands context by adding neighboring chunks strictly within
+        the same document boundaries.
+
+        Rules (Part 10):
+        - High confidence direct hit (>= 0.75) without sequence indicators: use direct chunk only.
+        - Medium confidence hit (0.25 to 0.75) or questions/content needing surrounding context: expand.
+        - Low confidence hit (< 0.25): do not expand to prevent noise accumulation.
+        - Never crosses document boundaries, never produces negative indices, deduplicates results.
         """
         if radius <= 0 or not candidate_chunks:
             # No expansion requested
@@ -70,6 +76,16 @@ class RetrievalService:
                 })
             return results
 
+        # Evaluate query and context triggers
+        import re
+        context_triggers = {
+            "before", "after", "next", "following", "preceding", "context",
+            "surrounding", "continue", "sequence", "procedure", "process",
+            "workflow", "step", "steps", "phase", "overview"
+        }
+        q_tokens = set(re.findall(r"\b\w+\b", (query or "").lower()))
+        query_needs_surrounding = bool(q_tokens & context_triggers)
+
         # Track loaded chunks and needed indices per document
         loaded_by_doc_index: Dict[Tuple[str, int], DocumentChunk] = {}
         target_indices_by_doc: Dict[str, Set[int]] = defaultdict(set)
@@ -83,16 +99,32 @@ class RetrievalService:
             loaded_by_doc_index[(doc_id, idx)] = c
             parent_scores_by_doc_index[(doc_id, idx)] = score
 
-            # Collect neighbor targets within radius
-            for offset in range(-radius, radius + 1):
-                target_idx = idx + offset
-                if target_idx >= 0:  # Do not produce negative chunk indexes
-                    target_indices_by_doc[doc_id].add(target_idx)
-                    # If this neighbor target doesn't have a score yet or parent score is higher
-                    neighbor_key = (doc_id, target_idx)
-                    discounted_score = max(0.0, score * (0.95 ** abs(offset)))
-                    if neighbor_key not in parent_scores_by_doc_index or discounted_score > parent_scores_by_doc_index[neighbor_key]:
-                        parent_scores_by_doc_index[neighbor_key] = discounted_score
+            # Evaluate whether expansion is warranted for this candidate
+            c_text_lower = (c.text or "").lower()
+            chunk_has_sequence = bool(re.search(
+                r"\b(step\s+\d+|phase\s+\d+|section\s+\d+|first\s+step|second\s+step|third\s+step)\b",
+                c_text_lower
+            ))
+
+            is_high_confidence = score >= 0.75
+            is_low_confidence = score < 0.25
+
+            should_expand = False
+            if not is_low_confidence:
+                if not is_high_confidence or query_needs_surrounding or chunk_has_sequence:
+                    should_expand = True
+
+            if should_expand:
+                # Collect neighbor targets within radius
+                for offset in range(-radius, radius + 1):
+                    target_idx = idx + offset
+                    if target_idx >= 0:  # Do not produce negative chunk indexes
+                        target_indices_by_doc[doc_id].add(target_idx)
+                        neighbor_key = (doc_id, target_idx)
+                        discount_rate = getattr(settings, "RAG_CONTEXT_DISCOUNT", 0.80)
+                        discounted_score = max(0.0, score * (discount_rate ** abs(offset)))
+                        if neighbor_key not in parent_scores_by_doc_index or discounted_score > parent_scores_by_doc_index[neighbor_key]:
+                            parent_scores_by_doc_index[neighbor_key] = discounted_score
 
         # Query missing neighbor chunks from SQLite
         for doc_id, indices in target_indices_by_doc.items():
@@ -206,7 +238,8 @@ class RetrievalService:
             db=db,
             candidate_chunks=chunks,
             chunk_similarity_scores=chunk_similarity_scores,
-            radius=eff_radius
+            radius=eff_radius,
+            query=cleaned_query
         )
 
         # 5. Deterministic reranking (semantic + lexical overlap)

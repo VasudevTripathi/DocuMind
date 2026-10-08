@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional
 from app.core.config import settings
 from app.services.llm_provider import (
     BaseLLMProvider,
+    GroqProvider,
     GeminiProvider,
     OpenAIProvider,
     HeuristicFallbackProvider,
@@ -22,7 +23,7 @@ class LLMServiceError(Exception):
 class LLMService:
     """
     Coordinates LLM answer generation and document analysis:
-    - Resolves active provider (GeminiProvider if API key is present and functional)
+    - Resolves active provider (GroqProvider by default if API key is present and functional)
     - Automatically falls back to HeuristicFallbackProvider on any error, timeout, or missing key
     - Produces GenerationResult containing provider telemetry without breaking string contracts
     """
@@ -32,39 +33,67 @@ class LLMService:
         api_key: Optional[str] = None,
         model: Optional[str] = None,
         primary_provider: Optional[BaseLLMProvider] = None,
-        fallback_provider: Optional[BaseLLMProvider] = None
+        fallback_provider: Optional[BaseLLMProvider] = None,
+        provider_type: Optional[str] = None
     ):
-        if api_key is not None:
-            self.api_key = api_key
-        else:
+        configured_provider = (
+            provider_type
+            or ("gemini" if api_key and "gemini" in api_key.lower() else None)
+            or getattr(settings, "LLM_PROVIDER", None)
+            or os.environ.get("LLM_PROVIDER")
+            or "groq"
+        ).strip().lower()
+
+        self.provider_type = configured_provider
+        self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
+        self._primary_provider = primary_provider
+
+        if self.provider_type == "gemini":
             self.api_key = (
-                settings.GEMINI_API_KEY
+                api_key
+                or settings.GEMINI_API_KEY
                 or os.environ.get("GEMINI_API_KEY")
+            )
+            raw_model = (
+                model
+                or getattr(settings, "GEMINI_MODEL", None)
+                or os.environ.get("GEMINI_MODEL")
+                or "gemini-2.5-flash"
+            )
+            self.model = "gemini-2.5-flash" if raw_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash") else raw_model
+            if self._primary_provider is None and self.has_active_api_key:
+                self._primary_provider = GeminiProvider(
+                    api_key=self.api_key,
+                    model=self.model,
+                    timeout=30.0,
+                    max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
+                    initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
+                )
+        else:
+            # Default: Groq
+            self.api_key = (
+                api_key
+                or settings.GROQ_API_KEY
+                or os.environ.get("GROQ_API_KEY")
                 or settings.OPENAI_API_KEY
                 or os.environ.get("OPENAI_API_KEY")
             )
-        raw_model = (
-            model
-            or getattr(settings, "GEMINI_MODEL", None)
-            or os.environ.get("GEMINI_MODEL")
-            or getattr(settings, "LLM_MODEL", None)
-            or os.environ.get("LLM_MODEL")
-            or "gemini-2.5-flash"
-        )
-        if raw_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash"):
-            self.model = "gemini-2.5-flash"
-        else:
-            self.model = raw_model
-        self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
-        self._primary_provider = primary_provider
-        if self._primary_provider is None and self.api_key:
-            self._primary_provider = GeminiProvider(
-                api_key=self.api_key,
-                model=self.model,
-                timeout=30.0,
-                max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
-                initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
+            self.model = (
+                model
+                or getattr(settings, "GROQ_MODEL", None)
+                or os.environ.get("GROQ_MODEL")
+                or getattr(settings, "LLM_MODEL", None)
+                or os.environ.get("LLM_MODEL")
+                or "llama-3.3-70b-versatile"
             )
+            if self._primary_provider is None and self.has_active_api_key:
+                self._primary_provider = GroqProvider(
+                    api_key=self.api_key,
+                    model=self.model,
+                    timeout=30.0,
+                    max_retries=getattr(settings, "GROQ_MAX_RETRIES", 2),
+                    initial_backoff=getattr(settings, "GROQ_INITIAL_BACKOFF", 1.0)
+                )
 
     @property
     def client(self):
@@ -88,14 +117,20 @@ class LLMService:
         if not self.api_key or not self.api_key.strip():
             return False
         k = self.api_key.strip().lower()
-        if "your_gemini_api_key" in k or "your_api_key" in k or "placeholder" in k or k.startswith("your_"):
+        if (
+            "your_groq_api_key" in k
+            or "your_gemini_api_key" in k
+            or "your_api_key" in k
+            or "placeholder" in k
+            or k.startswith("your_")
+        ):
             return False
         return True
 
     @property
     def active_provider_name(self) -> str:
         if self.has_active_api_key and self._primary_provider:
-            return getattr(self._primary_provider, "provider_name", "gemini")
+            return getattr(self._primary_provider, "provider_name", self.provider_type)
         return "heuristic_fallback"
 
     def answer_question(self, question: str, context: str) -> GenerationResult:
@@ -112,11 +147,11 @@ class LLMService:
 
         if self.has_active_api_key and self._primary_provider:
             try:
-                logger.info(f"[LLMService] Generating answer via Gemini ({self.model})...")
+                logger.info(f"[LLMService] Generating answer via {self.active_provider_name} ({self.model})...")
                 return self._primary_provider.generate_answer(question, context)
             except Exception as e:
                 logger.warning(
-                    f"[LLMService] Gemini generation encountered an error ({e}). "
+                    f"[LLMService] {self.active_provider_name} generation encountered an error ({e}). "
                     f"Seamlessly degrading to deterministic heuristic fallback.",
                     exc_info=False
                 )
@@ -143,11 +178,11 @@ class LLMService:
 
         if self.has_active_api_key and self._primary_provider:
             try:
-                logger.info(f"[LLMService] Generating conversational answer via Gemini ({self.model})...")
+                logger.info(f"[LLMService] Generating conversational answer via {self.active_provider_name} ({self.model})...")
                 return self._primary_provider.generate_conversational_answer(question, context, history)
             except Exception as e:
                 logger.warning(
-                    f"[LLMService] Gemini conversational generation failed ({e}). "
+                    f"[LLMService] {self.active_provider_name} conversational generation failed ({e}). "
                     f"Degrading to heuristic fallback.",
                     exc_info=False
                 )
@@ -158,26 +193,27 @@ class LLMService:
     def analyze_document(self, text: str) -> Dict[str, Any]:
         """
         Extracts summary, key findings, and named entities.
-        Falls back to rule-based heuristic extraction if Gemini call fails.
+        Falls back to rule-based heuristic extraction if provider call fails.
         Explicitly tags quota_exceeded and provider status if 429 quota exhaustion occurs.
         """
         if self.has_active_api_key and self._primary_provider:
             try:
                 res = self._primary_provider.analyze_document(text)
-                res["provider"] = "gemini"
+                res["provider"] = getattr(self._primary_provider, "provider_name", self.provider_type)
                 res["quota_exceeded"] = False
                 return res
             except Exception as e:
                 err_str = str(e)
-                is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str
-                logger.warning(f"[LLMService] Gemini document analysis failed ({e}). Employing fallback.")
+                is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "ratelimit" in err_str.lower()
+                logger.warning(f"[LLMService] {self.active_provider_name} document analysis failed ({e}). Employing fallback.")
                 fallback = self._fallback_provider.analyze_document(text)
                 fallback["provider"] = "quota_exhausted" if is_quota else "heuristic_fallback"
                 fallback["quota_exceeded"] = is_quota
                 if is_quota:
-                    notice = "⚠️ [Notice: Google Gemini API quota limit reached (429 RESOURCE_EXHAUSTED). The following summary was extracted using offline heuristics instead of LLM generation.]\n\n"
+                    provider_label = self.active_provider_name.title()
+                    notice = f"⚠️ [Notice: {provider_label} API quota/rate limit reached. The following summary was extracted using offline heuristics instead of LLM generation.]\n\n"
                     fallback["summary"] = notice + fallback.get("summary", "")
-                    fallback["warning"] = "Google Gemini daily quota limit reached (429 RESOURCE_EXHAUSTED). Showing offline extractive analysis until quota resets."
+                    fallback["warning"] = f"{provider_label} API rate limit / quota reached. Showing offline extractive analysis until quota resets."
                 return fallback
 
         fallback = self._fallback_provider.analyze_document(text)
@@ -193,15 +229,15 @@ class LLMService:
     ) -> GenerationResult:
         """
         Synthesizes an executive summary of detected differences between Document A and Document B.
-        Attempts Gemini synthesis if available; seamlessly falls back to heuristic summary on error or offline mode.
+        Attempts LLM synthesis if available; seamlessly falls back to heuristic summary on error or offline mode.
         """
         if self.has_active_api_key and self._primary_provider:
             try:
-                logger.info(f"[LLMService] Synthesizing comparison explanation via Gemini ({self.model})...")
+                logger.info(f"[LLMService] Synthesizing comparison explanation via {self.active_provider_name} ({self.model})...")
                 return self._primary_provider.explain_comparison(doc_a_name, doc_b_name, differences_data)
             except Exception as e:
                 logger.warning(
-                    f"[LLMService] Gemini comparison explanation failed ({e}). "
+                    f"[LLMService] {self.active_provider_name} comparison explanation failed ({e}). "
                     f"Employing deterministic heuristic fallback.",
                     exc_info=False
                 )

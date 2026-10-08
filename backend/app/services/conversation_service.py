@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.models.document import Document
 from app.models.conversation import Conversation, ConversationMessage
 from app.services.retrieval_service import retrieval_service, RetrievalService, DocumentNotFoundError
-from app.services.rag_service import format_grounded_context, NO_CONTEXT_FALLBACK
+from app.services.rag_service import format_grounded_context, NO_CONTEXT_FALLBACK, select_context_chunks
 from app.services.llm_service import llm_service, LLMService
 
 logger = logging.getLogger("documind.conversation")
@@ -157,11 +157,12 @@ class ConversationService:
             )
             search_results = combined[:top_k]
 
-        # Filter chunks with meaningful semantic relevance
-        usable_chunks = [
-            c for c in search_results
-            if (c.get("score") or c.get("similarity_score") or 0.0) >= settings.RAG_MIN_SIMILARITY
-        ]
+        # Select minimal sufficient context chunks (budget, relevance, diversity)
+        usable_chunks = select_context_chunks(
+            chunks=search_results,
+            max_context_words=getattr(settings, "RAG_MAX_CONTEXT_WORDS", 2500),
+            min_similarity=settings.RAG_MIN_SIMILARITY
+        )
 
         # 1. Persist user message
         user_msg = ConversationMessage(

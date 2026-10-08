@@ -1,7 +1,9 @@
 import logging
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any, Optional, Set
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.document import Document
 from app.services.retrieval_service import retrieval_service, RetrievalService, DocumentNotFoundError
 from app.services.llm_service import llm_service, LLMService
@@ -10,6 +12,106 @@ from app.services.grounding_service import grounding_service, GroundingService, 
 logger = logging.getLogger("documind.rag")
 
 NO_CONTEXT_FALLBACK = "The answer could not be found in the provided documents."
+
+def select_context_chunks(
+    chunks: List[Dict[str, Any]],
+    max_context_words: Optional[int] = None,
+    min_similarity: float = 0.10,
+    max_overlap_ratio: float = 0.65
+) -> List[Dict[str, Any]]:
+    """
+    Selects the smallest sufficient, high-quality, non-redundant set of document chunks
+    to fit within a strict context budget (Part 7, Part 8, Part 9, Part 11).
+
+    Pipeline:
+    1. Relevance filtering: Discards chunks below min_similarity.
+    2. Sorts candidates by quality (rerank_score descending, semantic_score descending).
+    3. MMR-like redundancy minimization: Prunes overlapping chunks (> 65% token Jaccard overlap).
+    4. Hard context budget: Accumulates words up to max_context_words; stops once budget is met.
+    """
+    if not chunks:
+        return []
+
+    budget = max_context_words if max_context_words is not None else getattr(settings, "RAG_MAX_CONTEXT_WORDS", 2500)
+
+    # 1. Relevance thresholding: chunk must have meaningful semantic or lexical relevance
+    relevant_candidates = []
+    for c in chunks:
+        sem_score = float(c.get("semantic_score") or c.get("similarity_score") or c.get("score") or 0.0)
+        lex_score = float(c.get("lexical_score", 0.0))
+        rerank_sc = float(c.get("rerank_score") or c.get("score") or 0.0)
+
+        # If explicit semantic score is present and is below min_similarity with 0 lexical overlap, drop
+        explicit_sem = c.get("semantic_score") if c.get("semantic_score") is not None else c.get("similarity_score")
+        if explicit_sem is not None and float(explicit_sem) < min_similarity and lex_score == 0.0:
+            continue
+
+        # If general score is below min_similarity, drop
+        if max(sem_score, rerank_sc) < min_similarity:
+            continue
+
+        relevant_candidates.append(c)
+
+    if not relevant_candidates:
+        return []
+
+    # 2. Sort by best rerank / semantic score
+    sorted_candidates = sorted(
+        relevant_candidates,
+        key=lambda x: (
+            -float(x.get("rerank_score", x.get("score", 0.0))),
+            -float(x.get("semantic_score", x.get("similarity_score", 0.0))),
+            x.get("chunk_index", 0)
+        )
+    )
+
+    selected: List[Dict[str, Any]] = []
+    selected_token_sets: List[Set[str]] = []
+    total_words = 0
+
+    for cand in sorted_candidates:
+        cand_text = (cand.get("text") or "").strip()
+        cand_words = len(cand_text.split())
+        if cand_words == 0:
+            continue
+
+        cand_tokens = set(re.findall(r"\b\w{3,}\b", cand_text.lower()))
+
+        # 3. MMR-like redundancy check: containment ratio against already selected chunks from same document
+        is_redundant = False
+        cand_doc_id = cand.get("document_id")
+        cand_nums = set(re.findall(r"\b\d+(?:\.\d+)?\b", cand_text))
+
+        for sel, sel_tokens in zip(selected, selected_token_sets):
+            if sel.get("document_id") == cand_doc_id and cand_tokens and sel_tokens:
+                sel_text = (sel.get("text") or "").strip()
+                sel_nums = set(re.findall(r"\b\d+(?:\.\d+)?\b", sel_text))
+                # Distinct numeric entities (e.g. 7 years vs 10 years) carry crucial distinct facts/conflicts
+                if cand_nums != sel_nums:
+                    continue
+
+                intersection = len(cand_tokens & sel_tokens)
+                containment = intersection / max(1, min(len(cand_tokens), len(sel_tokens)))
+                if containment > max_overlap_ratio:
+                    is_redundant = True
+                    break
+
+        if is_redundant:
+            continue
+
+        # 4. Hard context budget check
+        if selected and (total_words + cand_words > budget):
+            # Budget exceeded and we already have at least one top evidence chunk
+            break
+
+        selected.append(cand)
+        selected_token_sets.append(cand_tokens)
+        total_words += cand_words
+
+        if total_words >= budget:
+            break
+
+    return selected
 
 def format_grounded_context(chunks: List[Dict[str, Any]]) -> str:
     """
@@ -37,12 +139,13 @@ class RAGService:
     """
     Orchestrates the document-grounded question answering workflow (Phase 8.4):
     1. Validates query and document scoping.
-    2. Calls RetrievalService to fetch top-k relevant chunks.
-    3. Handles no-context scenarios safely without calling the LLM.
-    4. Assembles grounded context with source citations.
-    5. Invokes LLM service with dedicated grounding prompt.
-    6. Verifies answer grounding and source attribution.
-    7. Returns structured answer, source attribution, and deterministic grounding metadata.
+    2. Calls RetrievalService to fetch candidate chunks.
+    3. Selects relevant, diverse chunks respecting the hard context budget.
+    4. Handles no-context scenarios safely without calling the LLM.
+    5. Assembles grounded context with source citations.
+    6. Invokes LLM service with dedicated grounding prompt.
+    7. Verifies answer grounding and source attribution.
+    8. Returns structured answer, source attribution, and deterministic grounding metadata.
     """
 
     def __init__(
@@ -77,32 +180,36 @@ class RAGService:
             if not doc:
                 raise DocumentNotFoundError(f"Document with ID '{document_id}' was not found.")
 
-        # 1. Retrieve top-k chunks
+        # 1. Retrieve candidate chunks from RetrievalService
+        candidate_k = max(getattr(settings, "RAG_CANDIDATE_K", 8), top_k)
         chunks = self.retrieval_service.search(
             db=db,
             query=cleaned_query,
-            top_k=top_k,
+            top_k=candidate_k,
             document_id=document_id
         )
 
-        # Filter chunks that have minimal positive semantic similarity
-        usable_chunks = [
-            c for c in chunks
-            if (c.get("score") or c.get("similarity_score") or 0.0) > 0.05
-        ]
+        # 2. Select minimal sufficient context chunks (budget, relevance, diversity)
+        usable_chunks = select_context_chunks(
+            chunks=chunks,
+            max_context_words=getattr(settings, "RAG_MAX_CONTEXT_WORDS", 2500),
+            min_similarity=0.10
+        )
+        if len(usable_chunks) > top_k:
+            usable_chunks = usable_chunks[:top_k]
 
-        # 2. No-context guard: If no usable chunks retrieved or all evidence is irrelevant, do NOT call LLM
+        # 3. No-context guard: If no usable chunks retrieved or all evidence is irrelevant, do NOT call LLM
         q_tokens = set(self.grounding_service.reranker.tokenize(cleaned_query))
         has_any_overlap = any(
             bool(q_tokens & set(self.grounding_service.reranker.tokenize(c.get("text", ""))))
             for c in usable_chunks
         )
-        top_score = max(
-            ((c.get("score") or c.get("similarity_score") or 0.0) for c in usable_chunks),
+        top_semantic = max(
+            (float(c.get("semantic_score", c.get("similarity_score", 0.0))) for c in usable_chunks),
             default=0.0
         )
 
-        if not usable_chunks or (top_score < 0.10 and not has_any_overlap):
+        if not usable_chunks or (top_semantic < 0.12 and not has_any_overlap):
             logger.info(f"[RAGService] No usable or relevant chunks for query: '{cleaned_query[:40]}'. Returning safe fallback.")
             fallback_grounding = GroundingEvaluation(
                 status=GroundingStatus.INSUFFICIENT_EVIDENCE,

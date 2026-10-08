@@ -10,18 +10,35 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./data/uploads"
     MAX_UPLOAD_SIZE_MB: int = 50
     FRONTEND_URL: str = "http://localhost:5173"
+    LLM_PROVIDER: str = "groq"
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MAX_RETRIES: int = 2
+    GROQ_INITIAL_BACKOFF: float = 1.0
+
     GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
     GEMINI_MODEL: str | None = None
-    LLM_MODEL: str = "gemini-2.5-flash"
+    LLM_MODEL: str = "llama-3.3-70b-versatile"
     GEMINI_MAX_RETRIES: int = 2
     GEMINI_INITIAL_BACKOFF: float = 1.0
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     VECTOR_STORE_DIR: str = "./data/vector_store"
 
+    # Chunking Configuration (Part 4)
+    RAG_CHUNK_SIZE_WORDS: int = 600
+    RAG_CHUNK_OVERLAP_WORDS: int = 80
+
+    # Context Budget Configuration (Part 8)
+    RAG_MAX_CONTEXT_WORDS: int = 2500
+
+    @property
+    def active_groq_model(self) -> str:
+        return self.GROQ_MODEL or "llama-3.3-70b-versatile"
+
     @property
     def active_gemini_model(self) -> str:
-        return self.GEMINI_MODEL or self.LLM_MODEL or "gemini-2.5-flash"
+        return self.GEMINI_MODEL or "gemini-2.5-flash"
 
     # Phase 8.1 & 8.3 Retrieval & Reranking Settings
     RAG_CANDIDATE_K: int = 8
