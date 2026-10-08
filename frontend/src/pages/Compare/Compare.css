@@ -1330,6 +1330,48 @@
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
+.view-mode-btn.compare-tab-clear-btn {
+  color: #f87171;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-left: 2px;
+}
+
+.view-mode-btn.compare-tab-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+/* Compare Header Clear Button */
+.compare-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.compare-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.compare-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
 /* Compare Differences Table */
 .compare-table-container {
   width: 100%;

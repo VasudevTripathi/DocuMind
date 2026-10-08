@@ -301,6 +301,83 @@
   background: rgba(18, 18, 24, 0.85);
 }
 
+.workspace-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(22, 22, 32, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(8px);
+}
+
+.workspace-chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.workspace-chat-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  flex-shrink: 0;
+}
+
+.workspace-chat-header-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.workspace-chat-doc-pill {
+  font-size: 11px;
+  background: rgba(123, 63, 228, 0.15);
+  border: 1px solid rgba(123, 63, 228, 0.3);
+  color: #c4b5fd;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-chat-badge {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-tertiary);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.workspace-clear-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.workspace-clear-chat-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  transform: translateY(-1px);
+}
+
 .workspace-chat-messages {
   flex: 1;
   overflow-y: auto;

@@ -98,23 +98,94 @@ export const Workspace = () => {
     };
   }, [id, document?.status]);
 
-  // Initialize or fetch conversation for this document
+  // Initialize or restore conversation for this document
   useEffect(() => {
+    let isCancelled = false;
     const initChat = async () => {
       if (!id || !document) return;
+      const storageKey = `documind_workspace_conv_${id}`;
+      const savedConvId = localStorage.getItem(storageKey);
+
       try {
-        const conv = await conversationService.createConversation(
-          id,
-          `Workspace Chat - ${document.name}`
-        );
-        setConversation(conv);
-        setChatMessages(conv.messages || []);
+        // 1. Try to fetch saved conversation from localStorage
+        if (savedConvId) {
+          try {
+            const existing = await conversationService.getConversation(savedConvId);
+            if (existing && !isCancelled) {
+              setConversation(existing);
+              setChatMessages(existing.messages || []);
+              return;
+            }
+          } catch {
+            // Saved conversation was deleted or not found; fallback to querying document conversations
+          }
+        }
+
+        // 2. Query any existing conversations scoped to this document
+        const existingConvs = await conversationService.getConversations(id);
+        if (existingConvs && existingConvs.length > 0 && !isCancelled) {
+          const latestId = existingConvs[0].id;
+          try {
+            const fullConv = await conversationService.getConversation(latestId);
+            if (fullConv && !isCancelled) {
+              localStorage.setItem(storageKey, latestId);
+              setConversation(fullConv);
+              setChatMessages(fullConv.messages || []);
+              return;
+            }
+          } catch {
+            // Proceed to create a new conversation
+          }
+        }
+
+        // 3. No existing conversation found; create a new one
+        if (!isCancelled) {
+          const newConv = await conversationService.createConversation(
+            id,
+            `Workspace Chat - ${document.name}`
+          );
+          if (!isCancelled) {
+            localStorage.setItem(storageKey, newConv.id);
+            setConversation(newConv);
+            setChatMessages(newConv.messages || []);
+          }
+        }
       } catch (err) {
         console.error('Failed to init workspace conversation:', err);
       }
     };
+
     initChat();
-  }, [id, document]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [id, document?.id]);
+
+  const handleClearChat = async () => {
+    if (!id || !document) return;
+    const confirmClear = window.confirm('Clear all conversation messages in this AI Copilot session?');
+    if (!confirmClear) return;
+
+    const storageKey = `documind_workspace_conv_${id}`;
+    try {
+      if (conversation?.id) {
+        await conversationService.deleteConversation(conversation.id).catch(() => {});
+      }
+      localStorage.removeItem(storageKey);
+
+      const newConv = await conversationService.createConversation(
+        id,
+        `Workspace Chat - ${document.name}`
+      );
+      localStorage.setItem(storageKey, newConv.id);
+      setConversation(newConv);
+      setChatMessages([]);
+    } catch (err) {
+      console.error('Failed to clear workspace chat:', err);
+      setChatMessages([]);
+    }
+  };
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -459,6 +530,33 @@ export const Workspace = () => {
       {/* Tab 2: AI Copilot Chat Scoped to This Document */}
       {activeTab === 'chat' && (
         <div className="workspace-chat-container">
+          {/* Chat Header with Status and Clear Option */}
+          <div className="workspace-chat-header">
+            <div className="workspace-chat-header-info">
+              <div className="workspace-chat-status-dot" />
+              <span className="workspace-chat-header-title">AI Copilot</span>
+              <span className="workspace-chat-doc-pill" title={document?.name}>
+                {document?.name}
+              </span>
+              {chatMessages.length > 0 && (
+                <span className="workspace-chat-badge">
+                  {chatMessages.length} message{chatMessages.length === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+            {chatMessages.length > 0 && (
+              <button
+                type="button"
+                className="workspace-clear-chat-btn"
+                onClick={handleClearChat}
+                title="Clear chat history for this document"
+              >
+                <Trash2 size={13} />
+                <span>Clear Chat</span>
+              </button>
+            )}
+          </div>
+
           <div className="workspace-chat-messages" ref={chatScrollRef}>
             {chatMessages.length === 0 ? (
               <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-tertiary)' }}>

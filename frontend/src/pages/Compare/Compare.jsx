@@ -3,7 +3,8 @@ import {
   GitCompare, ArrowLeftRight, CheckCircle2, AlertTriangle, 
   ShieldAlert, PlusCircle, MinusCircle, RefreshCw, FileText, 
   Sparkles, Layers, Search, ArrowRight, X, AlertCircle, Info,
-  Loader2, Filter, ChevronDown, Check, Zap, Table as TableIcon, LayoutGrid
+  Loader2, Filter, ChevronDown, Check, Zap, Table as TableIcon, LayoutGrid,
+  RotateCcw, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '../../components/ui/GlassPanel';
@@ -17,20 +18,76 @@ import { GroundingPanel } from '../../components/Compare/GroundingPanel';
 import MarkdownRenderer from '../../components/ui/MarkdownRenderer';
 import './Compare.css';
 
+const COMPARE_STORAGE_KEY = 'documind_saved_comparison_state';
+
+const loadSavedComparisonState = () => {
+  try {
+    const raw = localStorage.getItem(COMPARE_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Failed to parse saved comparison state:', err);
+    return null;
+  }
+};
+
 export const Compare = () => {
   const { documents, isLoading: isLoadingDocs, error: docsError } = useDocuments();
 
+  // Load saved state if available
+  const savedState = useMemo(() => loadSavedComparisonState(), []);
+
   // Document Selection State
-  const [docAId, setDocAId] = useState('');
-  const [docBId, setDocBId] = useState('');
-  const [focusQuery, setFocusQuery] = useState('');
+  const [docAId, setDocAId] = useState(() => savedState?.docAId || '');
+  const [docBId, setDocBId] = useState(() => savedState?.docBId || '');
+  const [focusQuery, setFocusQuery] = useState(() => savedState?.focusQuery || '');
 
   // Execution & Results State
   const [isComparing, setIsComparing] = useState(false);
-  const [comparisonResult, setComparisonResult] = useState(null);
+  const [comparisonResult, setComparisonResult] = useState(() => savedState?.comparisonResult || null);
   const [errorMessage, setErrorMessage] = useState(null);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'conflicts', 'modifications', 'additions', 'removals', 'common'
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+  const [activeTab, setActiveTab] = useState(() => savedState?.activeTab || 'all'); // 'all', 'conflicts', 'modifications', 'additions', 'removals', 'common'
+  const [viewMode, setViewMode] = useState(() => savedState?.viewMode || 'cards'); // 'cards' | 'table'
+
+  // Persist comparison state to localStorage
+  useEffect(() => {
+    try {
+      if (docAId || docBId || focusQuery || comparisonResult) {
+        localStorage.setItem(
+          COMPARE_STORAGE_KEY,
+          JSON.stringify({
+            docAId,
+            docBId,
+            focusQuery,
+            comparisonResult,
+            activeTab,
+            viewMode
+          })
+        );
+      } else {
+        localStorage.removeItem(COMPARE_STORAGE_KEY);
+      }
+    } catch (err) {
+      console.warn('Failed to save comparison state:', err);
+    }
+  }, [docAId, docBId, focusQuery, comparisonResult, activeTab, viewMode]);
+
+  const handleClearComparison = () => {
+    const confirmClear = window.confirm('Clear comparison results and reset selected documents?');
+    if (!confirmClear) return;
+
+    setComparisonResult(null);
+    setErrorMessage(null);
+    setFocusQuery('');
+    setDocAId('');
+    setDocBId('');
+    setActiveTab('all');
+    try {
+      localStorage.removeItem(COMPARE_STORAGE_KEY);
+    } catch (err) {
+      // ignore
+    }
+  };
 
   // Dropdown search filters and refs
   const [searchA, setSearchA] = useState('');
@@ -215,6 +272,19 @@ export const Compare = () => {
             </div>
           </div>
         </div>
+        {(comparisonResult || docAId || docBId || focusQuery) && (
+          <div className="compare-header-actions">
+            <button
+              type="button"
+              className="compare-clear-btn"
+              onClick={handleClearComparison}
+              title="Clear comparison and reset selections"
+            >
+              <RotateCcw size={14} />
+              <span>Clear & Reset</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Document Loading Error Banner */}
@@ -720,7 +790,7 @@ export const Compare = () => {
               Common Content <span className="tab-count">{common.length}</span>
             </button>
 
-            {/* View Mode Toggle */}
+            {/* View Mode Toggle & Reset */}
             <div className="diff-view-mode-toggle">
               <button 
                 type="button" 
@@ -737,6 +807,14 @@ export const Compare = () => {
                 title="Table View"
               >
                 <TableIcon size={13} /> Table
+              </button>
+              <button 
+                type="button" 
+                className="view-mode-btn compare-tab-clear-btn"
+                onClick={handleClearComparison}
+                title="Clear comparison results"
+              >
+                <Trash2 size={13} /> Clear
               </button>
             </div>
           </div>
