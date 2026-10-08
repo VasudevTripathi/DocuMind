@@ -48,6 +48,8 @@ class LLMService:
         self._primary_provider = primary_provider
         self._secondary_provider = None
 
+        self._explicit_key_override = (api_key is not None)
+
         # Resolve available keys
         if api_key is not None:
             self.api_key = api_key
@@ -57,11 +59,21 @@ class LLMService:
                 groq_key = None
                 gemini_key = None
         else:
-            groq_key = settings.GROQ_API_KEY or os.environ.get("GROQ_API_KEY")
+            try:
+                from dotenv import dotenv_values
+                from pathlib import Path
+                env_vals = dotenv_values(Path(__file__).resolve().parent.parent.parent / ".env")
+                env_groq = env_vals.get("GROQ_API_KEY")
+                env_gemini = env_vals.get("GEMINI_API_KEY")
+                env_groq_m = env_vals.get("GROQ_MODEL")
+            except Exception:
+                env_groq, env_gemini, env_groq_m = None, None, None
+
+            groq_key = env_groq or settings.GROQ_API_KEY or os.environ.get("GROQ_API_KEY")
             if self._is_placeholder(groq_key):
                 groq_key = None
 
-            gemini_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
+            gemini_key = env_gemini or settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
             if self._is_placeholder(gemini_key):
                 gemini_key = None
             self.api_key = groq_key or gemini_key
@@ -188,11 +200,43 @@ class LLMService:
             return getattr(self._primary_provider, "provider_name", self.provider_type)
         return "heuristic_fallback"
 
+    def _sync_with_env(self):
+        """
+        Dynamically refreshes provider configuration from .env if running with placeholder or unconfigured keys.
+        Allows instant hot-reload of keys without restarting the server.
+        """
+        if getattr(self, "_explicit_key_override", False):
+            return
+        try:
+            from dotenv import dotenv_values
+            from pathlib import Path
+            env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+            if env_path.exists():
+                env_vals = dotenv_values(env_path)
+                groq_k = env_vals.get("GROQ_API_KEY")
+                groq_m = env_vals.get("GROQ_MODEL") or "openai/gpt-oss-120b"
+                if groq_k and not self._is_placeholder(groq_k):
+                    if self.provider_type != "groq" or not self.has_active_api_key or self.api_key != groq_k:
+                        logger.info(f"[LLMService] Hot-reloading active Groq API key from .env (model: {groq_m})")
+                        self.provider_type = "groq"
+                        self.api_key = groq_k
+                        self.model = groq_m
+                        self._primary_provider = GroqProvider(
+                            api_key=groq_k,
+                            model=self.model,
+                            timeout=30.0,
+                            max_retries=getattr(settings, "GROQ_MAX_RETRIES", 2),
+                            initial_backoff=getattr(settings, "GROQ_INITIAL_BACKOFF", 1.0)
+                        )
+        except Exception as e:
+            logger.debug(f"[LLMService] Hot-reload error: {e}")
+
     def answer_question(self, question: str, context: str) -> GenerationResult:
         """
         Generates a factual, grounded answer to the question using ONLY the retrieved context.
         Attempts primary generation; fails over to secondary if available; falls back to heuristic provider.
         """
+        self._sync_with_env()
         if not context or not context.strip():
             return GenerationResult(
                 text="The answer could not be found in the provided documents.",
@@ -229,6 +273,7 @@ class LLMService:
         Generates a conversational answer incorporating bounded dialogue turns.
         Preserves the strict boundary where document context is authoritative evidence.
         """
+        self._sync_with_env()
         if not context or not context.strip():
             return GenerationResult(
                 text="The answer could not be found in the provided documents.",
@@ -297,6 +342,7 @@ class LLMService:
         Falls back to rule-based heuristic extraction if provider call fails.
         Explicitly tags quota_exceeded and provider status if 429 quota exhaustion occurs.
         """
+        self._sync_with_env()
         if self.has_active_api_key and self._primary_provider:
             try:
                 res = self._primary_provider.analyze_document(text)

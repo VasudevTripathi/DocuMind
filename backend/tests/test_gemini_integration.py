@@ -288,7 +288,7 @@ def test_ask_api_returns_gemini_provider_and_model():
 
     assert "provider" in data
     assert "model" in data
-    assert data["provider"] in ("gemini", "heuristic_fallback", "system_guard")
+    assert data["provider"] in ("groq", "gemini", "heuristic_fallback", "system_guard")
 
     # Clean up
     retrieval_service.vector_store = orig_store
