@@ -43,7 +43,18 @@ class LLMService:
                 or settings.OPENAI_API_KEY
                 or os.environ.get("OPENAI_API_KEY")
             )
-        self.model = model or settings.LLM_MODEL or "gemini-flash-latest"
+        raw_model = (
+            model
+            or getattr(settings, "GEMINI_MODEL", None)
+            or os.environ.get("GEMINI_MODEL")
+            or getattr(settings, "LLM_MODEL", None)
+            or os.environ.get("LLM_MODEL")
+            or "gemini-2.5-flash"
+        )
+        if raw_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash"):
+            self.model = "gemini-2.5-flash"
+        else:
+            self.model = raw_model
         self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
         self._primary_provider = primary_provider
         if self._primary_provider is None and self.api_key:
@@ -51,7 +62,8 @@ class LLMService:
                 api_key=self.api_key,
                 model=self.model,
                 timeout=30.0,
-                max_retries=2
+                max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
+                initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
             )
 
     @property

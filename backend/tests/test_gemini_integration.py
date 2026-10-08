@@ -293,3 +293,100 @@ def test_ask_api_returns_gemini_provider_and_model():
     # Clean up
     retrieval_service.vector_store = orig_store
     app.dependency_overrides.clear()
+
+
+def test_gemini_provider_transient_503_retry_and_fallback():
+    """Verify that a 503 error is retried with backoff and falls back without invalid model failovers."""
+    fake_client = MagicMock()
+    fake_client.models.generate_content.side_effect = Exception(
+        "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand.'}}"
+    )
+
+    provider = GeminiProvider(
+        api_key="fake-test-key",
+        model="gemini-2.5-flash",
+        max_retries=2,
+        initial_backoff=0.01,
+        backoff_multiplier=1.0
+    )
+    provider._client = fake_client
+
+    service = LLMService(api_key="fake-test-key", primary_provider=provider)
+    res = service.answer_question(
+        question="What is the interval?",
+        context="The cluster interval is 250 milliseconds."
+    )
+
+    # 1 initial attempt + 2 retries = 3 attempts total
+    assert fake_client.models.generate_content.call_count == 3
+    # Check that all attempts used gemini-2.5-flash and NEVER gemini-2.5-pro
+    for call_args in fake_client.models.generate_content.call_args_list:
+        assert call_args.kwargs.get("model") == "gemini-2.5-flash"
+
+    # Fell back gracefully to heuristic provider
+    assert res.provider == "heuristic_fallback"
+    assert "250 milliseconds" in str(res)
+
+
+def test_gemini_provider_non_transient_404_no_retry():
+    """Verify that a 404 model error immediately aborts retries and goes to fallback."""
+    fake_client = MagicMock()
+    fake_client.models.generate_content.side_effect = Exception(
+        "404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/invalid-model is not found'}}"
+    )
+
+    provider = GeminiProvider(
+        api_key="fake-test-key",
+        model="gemini-2.5-flash",
+        max_retries=2,
+        initial_backoff=0.01
+    )
+    provider._client = fake_client
+
+    service = LLMService(api_key="fake-test-key", primary_provider=provider)
+    res = service.answer_question(
+        question="What is the interval?",
+        context="The cluster interval is 250 milliseconds."
+    )
+
+    # Must NOT retry on 404 -> only 1 call
+    assert fake_client.models.generate_content.call_count == 1
+    assert res.provider == "heuristic_fallback"
+    assert "250 milliseconds" in str(res)
+
+
+def test_gemini_provider_transient_retry_succeeds():
+    """Verify that a transient error followed by success returns Gemini result."""
+    fake_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.text = "The cluster interval is 250 milliseconds."
+    fake_candidate = MagicMock()
+    fake_candidate.finish_reason = "STOP"
+    fake_response.candidates = [fake_candidate]
+    fake_response.usage_metadata.total_token_count = 25
+
+    fake_client.models.generate_content.side_effect = [
+        Exception("503 UNAVAILABLE. High demand"),
+        fake_response
+    ]
+
+    provider = GeminiProvider(
+        api_key="fake-test-key",
+        model="gemini-2.5-flash",
+        max_retries=2,
+        initial_backoff=0.01,
+        backoff_multiplier=1.0
+    )
+    provider._client = fake_client
+
+    service = LLMService(api_key="fake-test-key", primary_provider=provider)
+    res = service.answer_question(
+        question="What is the interval?",
+        context="The cluster interval is 250 milliseconds."
+    )
+
+    assert fake_client.models.generate_content.call_count == 2
+    assert res.provider == "gemini"
+    assert res.model == "gemini-2.5-flash"
+    assert "250 milliseconds" in str(res)
+

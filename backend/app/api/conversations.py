@@ -39,7 +39,9 @@ def _build_message_response(msg) -> MessageResponse:
         role=msg.role,
         content=msg.content,
         sources=sources,
-        created_at=msg.created_at
+        created_at=msg.created_at,
+        provider=getattr(msg, "provider", None),
+        model=getattr(msg, "model", None)
     )
 
 @router.post("/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
@@ -140,7 +142,9 @@ def send_message(
             role=result["role"],
             content=result["content"],
             sources=sources,
-            created_at=result["created_at"]
+            created_at=result["created_at"],
+            provider=result.get("provider"),
+            model=result.get("model")
         )
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))

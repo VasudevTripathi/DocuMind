@@ -12,9 +12,16 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
+    GEMINI_MODEL: str | None = None
     LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MAX_RETRIES: int = 2
+    GEMINI_INITIAL_BACKOFF: float = 1.0
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     VECTOR_STORE_DIR: str = "./data/vector_store"
+
+    @property
+    def active_gemini_model(self) -> str:
+        return self.GEMINI_MODEL or self.LLM_MODEL or "gemini-2.5-flash"
 
     # Phase 8.1 & 8.3 Retrieval & Reranking Settings
     RAG_CANDIDATE_K: int = 8

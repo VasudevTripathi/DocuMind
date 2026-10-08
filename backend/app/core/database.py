@@ -33,6 +33,14 @@ def init_db():
                 conn.execute(text("ALTER TABLE document_analyses ADD COLUMN provider VARCHAR(50) DEFAULT 'gemini';"))
             if "quota_exceeded" not in existing_cols:
                 conn.execute(text("ALTER TABLE document_analyses ADD COLUMN quota_exceeded BOOLEAN DEFAULT 0;"))
+
+            msg_cursor = conn.execute(text("PRAGMA table_info(conversation_messages);"))
+            existing_msg_cols = {row[1] for row in msg_cursor.fetchall()}
+            if "provider" not in existing_msg_cols:
+                conn.execute(text("ALTER TABLE conversation_messages ADD COLUMN provider VARCHAR(50);"))
+            if "model" not in existing_msg_cols:
+                conn.execute(text("ALTER TABLE conversation_messages ADD COLUMN model VARCHAR(100);"))
+
             conn.commit()
     except Exception:
         pass

@@ -96,12 +96,27 @@ class GeminiProvider(BaseLLMProvider):
         api_key: str,
         model: Optional[str] = None,
         timeout: float = 30.0,
-        max_retries: int = 2
+        max_retries: Optional[int] = None,
+        initial_backoff: Optional[float] = None,
+        backoff_multiplier: float = 2.0
     ):
         self.api_key = api_key
-        self.model = model or settings.LLM_MODEL or "gemini-flash-latest"
+        raw_model = (
+            model
+            or getattr(settings, "GEMINI_MODEL", None)
+            or os.environ.get("GEMINI_MODEL")
+            or getattr(settings, "LLM_MODEL", None)
+            or os.environ.get("LLM_MODEL")
+            or "gemini-2.5-flash"
+        )
+        if raw_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash"):
+            self.model = "gemini-2.5-flash"
+        else:
+            self.model = raw_model
         self.timeout = timeout
-        self.max_retries = max_retries
+        self.max_retries = max_retries if max_retries is not None else getattr(settings, "GEMINI_MAX_RETRIES", 2)
+        self.initial_backoff = initial_backoff if initial_backoff is not None else getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
+        self.backoff_multiplier = backoff_multiplier
         self._client = None
 
     @property
@@ -115,37 +130,95 @@ class GeminiProvider(BaseLLMProvider):
             )
         return self._client
 
+    @staticmethod
+    def _is_transient_error(e: Exception) -> bool:
+        """
+        Classifies whether an error from Google GenAI is a transient failure eligible for retry:
+        - 503 UNAVAILABLE (high demand, spike)
+        - 429 RESOURCE_EXHAUSTED (rate limits)
+        - 504 DEADLINE_EXCEEDED / Gateway Timeout
+        - 500 / 502 / INTERNAL transient server errors
+        - Network/socket timeouts and connection resets
+
+        Non-transient fatal errors (404 NOT_FOUND, 400 INVALID_ARGUMENT, 401/403 AUTH) are NOT retryable.
+        """
+        err_str = str(e).lower()
+
+        # Non-transient fatal errors must never be retried
+        non_transient_markers = [
+            "404", "not_found", "not found", "no longer available",
+            "400", "invalid_argument", "invalid argument",
+            "401", "unauthenticated", "invalid api key",
+            "403", "permission_denied", "permission denied"
+        ]
+        if any(marker in err_str for marker in non_transient_markers):
+            return False
+
+        # Transient error markers
+        transient_markers = [
+            "503", "unavailable", "high demand", "spikes in demand",
+            "429", "resource_exhausted", "quota", "rate limit",
+            "504", "deadline_exceeded", "timed out", "timeout",
+            "500", "internal", "502", "bad gateway",
+            "connection error", "connection reset", "remote end closed"
+        ]
+        if any(marker in err_str for marker in transient_markers):
+            return True
+
+        if isinstance(e, (TimeoutError, ConnectionError, OSError)):
+            return True
+
+        return False
+
     def _call_model(self, contents, config):
         """
-        Executes generate_content with the primary model. If a 429 RESOURCE_EXHAUSTED
-        quota violation is encountered, automatically falls back to an available backup model
-        ('gemini-flash-latest' or 'gemini-flash-lite-latest') before exhausting options.
+        Executes generate_content with the primary model.
+        Implements bounded exponential backoff for genuinely transient failures (503, 429, timeout).
+        Non-transient errors (404 model not found, 400, 401, 403) fail immediately without retrying.
         """
-        try:
-            return self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=config
-            )
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                fallback_models = ["gemini-flash-latest", "gemini-flash-lite-latest"]
-                for fb_model in fallback_models:
-                    if fb_model != self.model:
-                        try:
-                            logger.warning(
-                                f"[GeminiProvider] Quota reached for '{self.model}'. "
-                                f"Attempting automatic failover to '{fb_model}'."
-                            )
-                            return self.client.models.generate_content(
-                                model=fb_model,
-                                contents=contents,
-                                config=config
-                            )
-                        except Exception as fb_err:
-                            logger.warning(f"[GeminiProvider] Failover to '{fb_model}' failed ({fb_err}).")
-            raise
+        primary_model = self.model
+        if primary_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash"):
+            primary_model = "gemini-2.5-flash"
+
+        max_attempts = max(1, self.max_retries + 1)
+        current_delay = self.initial_backoff
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                logger.info(
+                    f"[GeminiProvider] Gemini request started (model: '{primary_model}', attempt {attempt}/{max_attempts})"
+                )
+                response = self.client.models.generate_content(
+                    model=primary_model,
+                    contents=contents,
+                    config=config
+                )
+                logger.info(
+                    f"[GeminiProvider] Gemini request succeeded (model: '{primary_model}', attempt {attempt}/{max_attempts})"
+                )
+                return response
+            except Exception as e:
+                err_summary = str(e)[:120].replace("\n", " ")
+                if not self._is_transient_error(e):
+                    logger.warning(
+                        f"[GeminiProvider] Gemini configuration/model error (non-transient: {err_summary}) on '{primary_model}'. "
+                        f"Aborting retries immediately -> fallback."
+                    )
+                    raise
+
+                if attempt < max_attempts:
+                    logger.warning(
+                        f"[GeminiProvider] Gemini transient failure on attempt {attempt}/{max_attempts} "
+                        f"({err_summary}). Retrying in {current_delay:.1f}s..."
+                    )
+                    time.sleep(current_delay)
+                    current_delay *= self.backoff_multiplier
+                else:
+                    logger.warning(
+                        f"[GeminiProvider] Gemini retry exhausted after {max_attempts} attempts "
+                        f"({err_summary}) -> deterministic fallback."
+                    )
+                    raise
 
     def _build_system_prompt(self, is_conversational: bool = False) -> str:
         base_prompt = (
@@ -335,7 +408,7 @@ class GeminiProvider(BaseLLMProvider):
         config = types.GenerateContentConfig(
             system_instruction="You are a professional document analysis intelligence system. Output strictly valid JSON.",
             temperature=0.2,
-            max_output_tokens=1000,
+            max_output_tokens=2500,
             response_mime_type="application/json",
             thinking_config=types.ThinkingConfig(thinking_budget=0),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
@@ -351,7 +424,14 @@ class GeminiProvider(BaseLLMProvider):
             cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
             cleaned = re.sub(r"\s*```$", "", cleaned).strip()
 
-        data = json.loads(cleaned)
+        try:
+            data = json.loads(cleaned)
+        except Exception:
+            match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+            if match:
+                data = json.loads(match.group(0))
+            else:
+                raise
         return {
             "summary": str(data.get("summary", "")).strip(),
             "key_findings": data.get("key_findings", []),

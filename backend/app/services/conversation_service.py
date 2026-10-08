@@ -187,7 +187,9 @@ class ConversationService:
                 conversation_id=conversation.id,
                 role="assistant",
                 content=NO_CONTEXT_FALLBACK,
-                sources_json=None
+                sources_json=None,
+                provider="rag_guard",
+                model="guard-rule"
             )
             db.add(assistant_msg)
             db.commit()
@@ -199,7 +201,9 @@ class ConversationService:
                 "role": "assistant",
                 "content": NO_CONTEXT_FALLBACK,
                 "sources": [],
-                "created_at": assistant_msg.created_at
+                "created_at": assistant_msg.created_at,
+                "provider": "rag_guard",
+                "model": "guard-rule"
             }
 
         # 3. Assemble grounded context and bounded history
@@ -243,10 +247,15 @@ class ConversationService:
             ]
 
         # 6. Persist assistant message
+        provider_name = getattr(answer, "provider", "gemini" if self.llm_service.has_active_api_key else "heuristic_fallback")
+        model_name = getattr(answer, "model", self.llm_service.model if self.llm_service.has_active_api_key else "extractive-rules")
+
         assistant_msg = ConversationMessage(
             conversation_id=conversation.id,
             role="assistant",
-            content=answer
+            content=str(answer),
+            provider=provider_name,
+            model=model_name
         )
         assistant_msg.sources = sources
         db.add(assistant_msg)
@@ -260,8 +269,8 @@ class ConversationService:
             "content": str(answer),
             "sources": sources,
             "created_at": assistant_msg.created_at,
-            "provider": getattr(answer, "provider", "heuristic_fallback"),
-            "model": getattr(answer, "model", "extractive-rules")
+            "provider": provider_name,
+            "model": model_name
         }
 
 conversation_service = ConversationService()

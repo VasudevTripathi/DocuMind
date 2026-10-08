@@ -42,6 +42,8 @@ class ConversationMessage(Base):
     role = Column(String(50), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
     sources_json = Column(Text, nullable=True)  # JSON-encoded string for source attributions
+    provider = Column(String(50), nullable=True)
+    model = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships

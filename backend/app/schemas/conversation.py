@@ -18,6 +18,8 @@ class MessageResponse(BaseModel):
     content: str
     sources: Optional[List[SourceChunk]] = Field(default_factory=list)
     created_at: datetime
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

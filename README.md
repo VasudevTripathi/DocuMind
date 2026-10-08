@@ -300,16 +300,24 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env
-# Edit .env and insert your GEMINI_API_KEY
+# Configure environment (copies template only if .env does not already exist)
+cp -n .env.example .env 2>/dev/null || true
+# Edit .env and insert your GEMINI_API_KEY if not already set
 
-# Run tests (106 unit & integration tests)
+# Run tests (132 unit & integration tests)
 pytest -q
 
 # Start FastAPI development server
 uvicorn app.main:app --reload --port 8000
 ```
+
+> [!TIP]
+> **Subsequent Backend Runs**: Once the initial setup is complete, you do not need to re-copy `.env` or re-install dependencies. Simply start the server:
+> ```bash
+> cd backend
+> source .venv/bin/activate
+> uvicorn app.main:app --reload --port 8000
+> ```
 
 - API Base: `http://localhost:8000`
 - Interactive Swagger Docs: `http://localhost:8000/docs`
