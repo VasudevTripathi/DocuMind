@@ -1,12 +1,14 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import './MarkdownRenderer.css';
 
 /**
  * Enhanced Markdown renderer component supporting:
  * - Rich typography and high-contrast bold tags
  * - GitHub Flavored Markdown (GFM) tables with responsive horizontal scroll
+ * - Embedded HTML breaks like <br> within table cells via rehype-raw
  * - Bullet lists, numbered lists, blockquotes, code blocks
  */
 export default function MarkdownRenderer({ content, className = '' }) {
@@ -16,6 +18,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
     <div className={`documind-markdown ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           table: ({ node, ...props }) => (
             <div className="markdown-table-wrapper">

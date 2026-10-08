@@ -10,6 +10,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { documentService } from '../../services/documentService';
 import { conversationService } from '../../services/conversationService';
+import MarkdownRenderer from '../../components/ui/MarkdownRenderer';
 import './Workspace.css';
 
 export const Workspace = () => {
@@ -463,7 +464,7 @@ export const Workspace = () => {
               <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-tertiary)' }}>
                 <Sparkles size={32} className="text-accent-primary" style={{ margin: '0 auto 12px' }} />
                 <h3>Ask anything about {document.name}</h3>
-                <p className="text-sm">Powered by Google Gemini 2.5 Flash and grounded strictly in this document.</p>
+                <p className="text-sm">Powered by DocuMind AI and grounded strictly in this document.</p>
               </div>
             ) : (
               chatMessages.map((msg, i) => (
@@ -472,9 +473,13 @@ export const Workspace = () => {
                     {msg.role === 'user' ? 'U' : 'AI'}
                   </div>
                   <div className="chat-bubble">
-                    <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                    {msg.role === 'user' ? (
+                      <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                    ) : (
+                      <MarkdownRenderer content={msg.content} />
+                    )}
                     {msg.sources && msg.sources.length > 0 && (
-                      <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                      <div className="workspace-chat-sources">
                         <span>Grounded in {msg.sources.length} document chunk(s)</span>
                       </div>
                     )}

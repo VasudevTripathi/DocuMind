@@ -323,6 +323,8 @@
 
 .workspace-chat-msg.assistant {
   align-self: flex-start;
+  max-width: 92%;
+  width: 92%;
 }
 
 .chat-avatar {
@@ -349,10 +351,12 @@
 }
 
 .chat-bubble {
-  padding: var(--space-3) var(--space-4);
+  padding: 14px 18px;
   border-radius: var(--radius-lg);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .workspace-chat-msg.user .chat-bubble {
@@ -362,10 +366,24 @@
 }
 
 .workspace-chat-msg.assistant .chat-bubble {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 24, 40, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  flex: 1;
+  width: 100%;
+}
+
+.workspace-chat-sources {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .workspace-chat-input-bar {
