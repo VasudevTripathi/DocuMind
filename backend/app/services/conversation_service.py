@@ -224,8 +224,10 @@ class ConversationService:
             history=history_dicts
         )
 
-        # 5. Format sources (if answer is fallback, return empty sources)
-        if answer.strip() == NO_CONTEXT_FALLBACK:
+        # 5. Format sources (if answer is fallback or failure notice, return empty sources)
+        ans_str = str(answer).strip()
+        ans_provider = getattr(answer, "provider", "")
+        if ans_str == NO_CONTEXT_FALLBACK or ans_provider == "failure_notice" or ans_str.startswith("⚠️"):
             sources = []
         else:
             sources = [

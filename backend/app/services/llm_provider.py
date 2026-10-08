@@ -1061,7 +1061,13 @@ class HeuristicFallbackProvider(BaseLLMProvider):
         ]
         is_overview = any(k in q_lower for k in overview_keywords)
 
-        if not q_words and not is_overview:
+        if is_overview:
+            return (
+                "⚠️ Generating document overviews, key findings, and summaries requires an active LLM provider. "
+                "Please configure a valid GROQ_API_KEY (or GEMINI_API_KEY) in backend/.env."
+            )
+
+        if not q_words:
             return "The answer could not be found in the provided documents."
 
         content_blocks = []
@@ -1092,31 +1098,22 @@ class HeuristicFallbackProvider(BaseLLMProvider):
             # Clean repetitive page header banners if present
             clean_block = re.sub(r'ANNEXURE-\d+[^\n]+Page \d+ of \d+', '', clean_block, flags=re.IGNORECASE)
 
-            sentences = re.split(r"(?<=[.!?])\s+", clean_block)
+            # Split on punctuation periods or line breaks
+            sentences = re.split(r"(?<=[.!?])\s+|\n+", clean_block)
             for s in sentences:
                 s_clean = s.strip()
-                if len(s_clean) < 15:
+                words_in_s = len(s_clean.split())
+                # Discard too short or unpunctuated giant blobs (> 45 words)
+                if words_in_s < 3 or words_in_s > 45:
                     continue
                 s_lower = s_clean.lower()
                 match_count = sum(1 for qw in q_words if qw in s_lower)
                 
                 if match_count >= 1:
-                    # Specific query match bonus
                     score = float(match_count) * 2.0
-                    # Proportional coverage boost
                     if q_words:
                         score += (match_count / len(q_words))
                     scored_sentences.append((score, s_clean))
-                elif is_overview and len(s_clean) >= 25:
-                    # Substantive sentence for broad finding/summary query
-                    inf_score = 0.5
-                    if any(t in s_lower for t in [
-                        "course", "title", "task", "project", "approach", "objective",
-                        "finding", "recommendation", "topic", "agile", "report", "summary",
-                        "policy", "requirement", "specification", "purpose", "result"
-                    ]):
-                        inf_score = 2.0
-                    scored_sentences.append((inf_score, s_clean))
 
         if not scored_sentences:
             return "The answer could not be found in the provided documents."

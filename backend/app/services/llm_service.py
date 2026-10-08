@@ -44,49 +44,45 @@ class LLMService:
             or "groq"
         ).strip().lower()
 
-        self.provider_type = configured_provider
         self._fallback_provider = fallback_provider or HeuristicFallbackProvider()
         self._primary_provider = primary_provider
+        self._secondary_provider = None
 
-        if self.provider_type == "gemini":
-            self.api_key = (
-                api_key
-                or settings.GEMINI_API_KEY
-                or os.environ.get("GEMINI_API_KEY")
-            )
-            raw_model = (
-                model
-                or getattr(settings, "GEMINI_MODEL", None)
-                or os.environ.get("GEMINI_MODEL")
-                or "gemini-2.5-flash"
-            )
-            self.model = "gemini-2.5-flash" if raw_model in ("gemini-flash-latest", "gemini-flash", "gemini-1.5-flash") else raw_model
-            if self._primary_provider is None and self.has_active_api_key:
-                self._primary_provider = GeminiProvider(
-                    api_key=self.api_key,
-                    model=self.model,
-                    timeout=30.0,
-                    max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
-                    initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
-                )
+        # Resolve available keys
+        if api_key is not None:
+            self.api_key = api_key
+            groq_key = api_key if configured_provider == "groq" or "groq" in api_key.lower() else None
+            gemini_key = api_key if configured_provider == "gemini" or "gemini" in api_key.lower() else None
+            if self._is_placeholder(api_key):
+                groq_key = None
+                gemini_key = None
         else:
-            # Default: Groq
-            self.api_key = (
-                api_key
-                or settings.GROQ_API_KEY
-                or os.environ.get("GROQ_API_KEY")
-                or settings.OPENAI_API_KEY
-                or os.environ.get("OPENAI_API_KEY")
-            )
-            self.model = (
-                model
-                or getattr(settings, "GROQ_MODEL", None)
-                or os.environ.get("GROQ_MODEL")
-                or getattr(settings, "LLM_MODEL", None)
-                or os.environ.get("LLM_MODEL")
-                or "llama-3.3-70b-versatile"
-            )
-            if self._primary_provider is None and self.has_active_api_key:
+            groq_key = settings.GROQ_API_KEY or os.environ.get("GROQ_API_KEY")
+            if self._is_placeholder(groq_key):
+                groq_key = None
+
+            gemini_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
+            if self._is_placeholder(gemini_key):
+                gemini_key = None
+            self.api_key = groq_key or gemini_key
+
+        if self._primary_provider is not None:
+            self.provider_type = configured_provider
+            if api_key is not None:
+                self.api_key = api_key
+            else:
+                self.api_key = groq_key or gemini_key
+            self.model = model or getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+        elif configured_provider == "groq":
+            if groq_key:
+                self.provider_type = "groq"
+                self.api_key = groq_key
+                self.model = (
+                    model
+                    or getattr(settings, "GROQ_MODEL", None)
+                    or os.environ.get("GROQ_MODEL")
+                    or "llama-3.3-70b-versatile"
+                )
                 self._primary_provider = GroqProvider(
                     api_key=self.api_key,
                     model=self.model,
@@ -94,6 +90,76 @@ class LLMService:
                     max_retries=getattr(settings, "GROQ_MAX_RETRIES", 2),
                     initial_backoff=getattr(settings, "GROQ_INITIAL_BACKOFF", 1.0)
                 )
+                if gemini_key:
+                    self._secondary_provider = GeminiProvider(
+                        api_key=gemini_key,
+                        model=getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+                    )
+            elif gemini_key:
+                # Groq key not configured, but Gemini key is available: auto-failover
+                logger.info("[LLMService] Groq API key is not configured; auto-failing over to active Gemini API key.")
+                self.provider_type = "gemini"
+                self.api_key = gemini_key
+                self.model = getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+                self._primary_provider = GeminiProvider(
+                    api_key=self.api_key,
+                    model=self.model,
+                    timeout=30.0,
+                    max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
+                    initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
+                )
+            else:
+                self.provider_type = "groq"
+                self.api_key = None
+                self.model = model or getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                self._primary_provider = None
+        else:
+            if gemini_key:
+                self.provider_type = "gemini"
+                self.api_key = gemini_key
+                self.model = model or getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+                self._primary_provider = GeminiProvider(
+                    api_key=self.api_key,
+                    model=self.model,
+                    timeout=30.0,
+                    max_retries=getattr(settings, "GEMINI_MAX_RETRIES", 2),
+                    initial_backoff=getattr(settings, "GEMINI_INITIAL_BACKOFF", 1.0)
+                )
+                if groq_key:
+                    self._secondary_provider = GroqProvider(
+                        api_key=groq_key,
+                        model=getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                    )
+            elif groq_key:
+                logger.info("[LLMService] Gemini API key is not configured; auto-failing over to active Groq API key.")
+                self.provider_type = "groq"
+                self.api_key = groq_key
+                self.model = getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                self._primary_provider = GroqProvider(
+                    api_key=self.api_key,
+                    model=self.model,
+                    timeout=30.0,
+                    max_retries=getattr(settings, "GROQ_MAX_RETRIES", 2),
+                    initial_backoff=getattr(settings, "GROQ_INITIAL_BACKOFF", 1.0)
+                )
+            else:
+                self.provider_type = "gemini"
+                self.api_key = None
+                self.model = model or getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash"
+                self._primary_provider = None
+
+    @staticmethod
+    def _is_placeholder(k: Optional[str]) -> bool:
+        if not k or not k.strip():
+            return True
+        val = k.strip().lower()
+        return (
+            "your_groq_api_key" in val
+            or "your_gemini_api_key" in val
+            or "your_api_key" in val
+            or "placeholder" in val
+            or val.startswith("your_")
+        )
 
     @property
     def client(self):
@@ -114,18 +180,7 @@ class LLMService:
 
     @property
     def has_active_api_key(self) -> bool:
-        if not self.api_key or not self.api_key.strip():
-            return False
-        k = self.api_key.strip().lower()
-        if (
-            "your_groq_api_key" in k
-            or "your_gemini_api_key" in k
-            or "your_api_key" in k
-            or "placeholder" in k
-            or k.startswith("your_")
-        ):
-            return False
-        return True
+        return not self._is_placeholder(self.api_key)
 
     @property
     def active_provider_name(self) -> str:
@@ -136,7 +191,7 @@ class LLMService:
     def answer_question(self, question: str, context: str) -> GenerationResult:
         """
         Generates a factual, grounded answer to the question using ONLY the retrieved context.
-        Attempts Gemini generation if configured; falls back to deterministic extraction on failure.
+        Attempts primary generation; fails over to secondary if available; falls back to heuristic provider.
         """
         if not context or not context.strip():
             return GenerationResult(
@@ -151,12 +206,17 @@ class LLMService:
                 return self._primary_provider.generate_answer(question, context)
             except Exception as e:
                 logger.warning(
-                    f"[LLMService] {self.active_provider_name} generation encountered an error ({e}). "
-                    f"Seamlessly degrading to deterministic heuristic fallback.",
+                    f"[LLMService] {self.active_provider_name} generation failed ({e}).",
                     exc_info=False
                 )
+                if self._secondary_provider:
+                    try:
+                        sec_name = getattr(self._secondary_provider, "provider_name", "secondary")
+                        logger.info(f"[LLMService] Attempting failover to secondary provider ({sec_name})...")
+                        return self._secondary_provider.generate_answer(question, context)
+                    except Exception as e2:
+                        logger.warning(f"[LLMService] Secondary provider ({sec_name}) generation also failed: {e2}")
 
-        logger.info("[LLMService] Utilizing deterministic heuristic fallback answering.")
         return self._fallback_provider.generate_answer(question, context)
 
     def answer_conversational_question(
@@ -176,19 +236,60 @@ class LLMService:
                 model=self.model if self.has_active_api_key else "extractive-rules"
             )
 
+        last_error = None
         if self.has_active_api_key and self._primary_provider:
             try:
                 logger.info(f"[LLMService] Generating conversational answer via {self.active_provider_name} ({self.model})...")
                 return self._primary_provider.generate_conversational_answer(question, context, history)
             except Exception as e:
+                last_error = str(e)
                 logger.warning(
-                    f"[LLMService] {self.active_provider_name} conversational generation failed ({e}). "
-                    f"Degrading to heuristic fallback.",
+                    f"[LLMService] {self.active_provider_name} conversational generation failed ({e}).",
                     exc_info=False
                 )
+                if self._secondary_provider:
+                    try:
+                        sec_name = getattr(self._secondary_provider, "provider_name", "secondary")
+                        logger.info(f"[LLMService] Attempting conversational failover to secondary provider ({sec_name})...")
+                        return self._secondary_provider.generate_conversational_answer(question, context, history)
+                    except Exception as e2:
+                        last_error = f"{last_error}; secondary failed: {e2}"
 
-        logger.info("[LLMService] Utilizing deterministic heuristic conversational answering.")
-        return self._fallback_provider.generate_conversational_answer(question, context, history)
+        # In case of failure, DO NOT dump raw document text! Return the failure reason clearly.
+        if last_error:
+            if "RESOURCE_EXHAUSTED" in last_error or "429" in last_error:
+                failure_text = (
+                    f"⚠️ AI Generation Error ({self.active_provider_name}): Quota or rate limit exceeded (429 RESOURCE_EXHAUSTED).\n\n"
+                    "The model provider has exceeded its current API quota. "
+                    "To fix this, please set a valid GROQ_API_KEY in `backend/.env` (free tier at console.groq.com) or check your billing plan."
+                )
+            elif "401" in last_error or "API_KEY_INVALID" in last_error or "invalid api key" in last_error.lower():
+                failure_text = (
+                    f"⚠️ AI Generation Error ({self.active_provider_name}): Authentication failed (401 Invalid API Key).\n\n"
+                    "Please check your API key in `backend/.env`."
+                )
+            elif "503" in last_error or "high demand" in last_error.lower():
+                failure_text = (
+                    f"⚠️ AI Generation Error ({self.active_provider_name}): Service temporarily unavailable (503 High Demand).\n\n"
+                    "The upstream model is currently experiencing high demand. Please try again shortly or configure a GROQ_API_KEY in `backend/.env`."
+                )
+            else:
+                failure_text = f"⚠️ AI Generation Error ({self.active_provider_name}): {last_error[:250]}"
+        elif not self.has_active_api_key:
+            failure_text = (
+                f"⚠️ AI Generation Unavailable: No valid API key configured for provider '{self.provider_type}'.\n\n"
+                "Please configure a valid GROQ_API_KEY (or GEMINI_API_KEY) in `backend/.env` to enable conversational AI answers."
+            )
+        else:
+            failure_text = "⚠️ AI Generation Failed: The language model was unable to generate an answer."
+
+        return GenerationResult(
+            text=failure_text,
+            provider="failure_notice",
+            model="failure-handler",
+            tokens_used=0,
+            latency_ms=0.0
+        )
 
     def analyze_document(self, text: str) -> Dict[str, Any]:
         """
