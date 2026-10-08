@@ -1290,3 +1290,107 @@
     width: 100%;
   }
 }
+
+/* Diff View Mode Toggle */
+.diff-view-mode-toggle {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-mode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-mode-btn.active {
+  background: #6366f1;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+/* Compare Differences Table */
+.compare-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(14, 18, 32, 0.7);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  margin-top: var(--space-4);
+}
+
+.compare-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.compare-diff-table th {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+
+.compare-diff-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.compare-diff-table tr:last-child td {
+  border-bottom: none;
+}
+
+.compare-diff-table tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.compare-diff-table td strong {
+  color: #ffffff;
+}
+
+.diff-table-row.diff-row-conflict td.doc-a-cell,
+.diff-table-row.diff-row-conflict td.doc-b-cell {
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.diff-table-row.diff-row-modification td.doc-a-cell,
+.diff-table-row.diff-row-modification td.doc-b-cell {
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.diff-empty-cell {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 12px;
+}
+

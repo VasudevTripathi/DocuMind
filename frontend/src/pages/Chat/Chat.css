@@ -188,6 +188,8 @@
 
 .message-row.assistant {
   align-self: flex-start;
+  max-width: 92%;
+  width: 92%;
 }
 
 .msg-avatar {
@@ -214,11 +216,13 @@
 }
 
 .msg-bubble {
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  line-height: 1.55;
+  line-height: 1.6;
   position: relative;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .message-row.user .msg-bubble {
@@ -228,10 +232,12 @@
 }
 
 .message-row.assistant .msg-bubble {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(18, 24, 40, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   border-top-left-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  flex: 1;
 }
 
 .msg-time {

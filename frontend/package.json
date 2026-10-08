@@ -15,9 +15,11 @@
     "lucide-react": "^0.364.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "react-pdf": "^7.7.1",
     "react-router-dom": "^6.22.3",
-    "recharts": "^2.12.3"
+    "recharts": "^2.12.3",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",

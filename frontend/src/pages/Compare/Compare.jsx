@@ -3,7 +3,7 @@ import {
   GitCompare, ArrowLeftRight, CheckCircle2, AlertTriangle, 
   ShieldAlert, PlusCircle, MinusCircle, RefreshCw, FileText, 
   Sparkles, Layers, Search, ArrowRight, X, AlertCircle, Info,
-  Loader2, Filter, ChevronDown, Check, Zap
+  Loader2, Filter, ChevronDown, Check, Zap, Table as TableIcon, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '../../components/ui/GlassPanel';
@@ -14,6 +14,7 @@ import { useDocuments } from '../../hooks/useDocuments';
 import { comparisonService } from '../../services/comparisonService';
 import { SourceEvidence } from '../../components/Compare/SourceEvidence';
 import { GroundingPanel } from '../../components/Compare/GroundingPanel';
+import MarkdownRenderer from '../../components/ui/MarkdownRenderer';
 import './Compare.css';
 
 export const Compare = () => {
@@ -29,6 +30,7 @@ export const Compare = () => {
   const [comparisonResult, setComparisonResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'conflicts', 'modifications', 'additions', 'removals', 'common'
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
 
   // Dropdown search filters and refs
   const [searchA, setSearchA] = useState('');
@@ -134,6 +136,67 @@ export const Compare = () => {
   const conflicts = comparisonResult?.conflicts || [];
   const common = comparisonResult?.common || [];
   const totalDifferences = additions.length + removals.length + modifications.length + conflicts.length;
+
+  // Memoized table items for structured comparison table view
+  const tableItems = useMemo(() => {
+    const list = [];
+    conflicts.forEach(c => list.push({
+      id: c.id,
+      type: 'conflict',
+      typeLabel: 'Conflict',
+      topic: c.topic,
+      docA: c.document_a,
+      docB: c.document_b,
+      explanation: c.explanation
+    }));
+    modifications.forEach(m => list.push({
+      id: m.id,
+      type: 'modification',
+      typeLabel: 'Modified',
+      topic: m.topic,
+      docA: m.document_a,
+      docB: m.document_b,
+      explanation: m.explanation
+    }));
+    additions.forEach(a => list.push({
+      id: a.id,
+      type: 'addition',
+      typeLabel: 'Addition',
+      topic: a.topic,
+      docA: null,
+      docB: a.content,
+      explanation: 'Introduced in Document B'
+    }));
+    removals.forEach(r => list.push({
+      id: r.id,
+      type: 'removal',
+      typeLabel: 'Removal',
+      topic: r.topic,
+      docA: r.content,
+      docB: null,
+      explanation: 'Omitted from Document B'
+    }));
+    common.forEach(cm => list.push({
+      id: cm.id,
+      type: 'common',
+      typeLabel: 'Common',
+      topic: cm.topic,
+      docA: cm.content,
+      docB: cm.content,
+      explanation: 'Identical across both documents'
+    }));
+    return list;
+  }, [conflicts, modifications, additions, removals, common]);
+
+  const filteredTableItems = useMemo(() => {
+    if (activeTab === 'all') return tableItems;
+    if (activeTab === 'conflicts') return tableItems.filter(i => i.type === 'conflict');
+    if (activeTab === 'modifications') return tableItems.filter(i => i.type === 'modification');
+    if (activeTab === 'additions') return tableItems.filter(i => i.type === 'addition');
+    if (activeTab === 'removals') return tableItems.filter(i => i.type === 'removal');
+    if (activeTab === 'common') return tableItems.filter(i => i.type === 'common');
+    return tableItems;
+  }, [tableItems, activeTab]);
 
   return (
     <div className="compare-page-container">
@@ -535,13 +598,17 @@ export const Compare = () => {
                     <Zap size={12} className="text-accent-secondary" />
                     {comparisonResult.provider 
                       ? (comparisonResult.provider === 'gemini' 
-                          ? (comparisonResult.model || 'Gemini') 
-                          : comparisonResult.provider.replace(/_/g, ' ').toUpperCase())
+                          ? `Gemini (${comparisonResult.model || 'gemini-2.5-flash'})`
+                          : comparisonResult.provider === 'groq'
+                            ? `Groq (${comparisonResult.model || 'openai/gpt-oss-120b'})`
+                            : comparisonResult.provider.replace(/_/g, ' ').toUpperCase())
                       : 'LOCAL ENGINE'}
                   </span>
                 </div>
               </div>
-              <p className="summary-content">{comparisonResult.summary}</p>
+              <div className="summary-content">
+                <MarkdownRenderer content={comparisonResult.summary} />
+              </div>
             </div>
           </GlassPanel>
 
@@ -652,9 +719,75 @@ export const Compare = () => {
             >
               Common Content <span className="tab-count">{common.length}</span>
             </button>
+
+            {/* View Mode Toggle */}
+            <div className="diff-view-mode-toggle">
+              <button 
+                type="button" 
+                className={`view-mode-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                onClick={() => setViewMode('cards')}
+                title="Cards View"
+              >
+                <LayoutGrid size={13} /> Cards
+              </button>
+              <button 
+                type="button" 
+                className={`view-mode-btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => setViewMode('table')}
+                title="Table View"
+              >
+                <TableIcon size={13} /> Table
+              </button>
+            </div>
           </div>
 
-          {/* Detailed Differences List */}
+          {/* Table View Mode */}
+          {viewMode === 'table' ? (
+            <div className="compare-table-container">
+              {filteredTableItems.length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                  <CheckCircle2 size={28} className="text-success" style={{ margin: '0 auto 8px' }} />
+                  <p>No items recorded under this category</p>
+                </div>
+              ) : (
+                <table className="compare-diff-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '110px' }}>Type</th>
+                      <th style={{ width: '160px' }}>Topic / Spec</th>
+                      <th style={{ width: '32%' }}>{comparisonResult.document_a?.name || 'Document A'}</th>
+                      <th style={{ width: '32%' }}>{comparisonResult.document_b?.name || 'Document B'}</th>
+                      <th>Details & Explanation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTableItems.map((item) => (
+                      <tr key={item.id} className={`diff-table-row diff-row-${item.type}`}>
+                        <td>
+                          <span className={`diff-type-badge ${item.type}`}>
+                            {item.typeLabel}
+                          </span>
+                        </td>
+                        <td>
+                          <strong>{item.topic}</strong>
+                        </td>
+                        <td className="doc-a-cell">
+                          {item.docA ? <span>{item.docA}</span> : <span className="diff-empty-cell">— Not in Doc A —</span>}
+                        </td>
+                        <td className="doc-b-cell">
+                          {item.docB ? <span>{item.docB}</span> : <span className="diff-empty-cell">— Not in Doc B —</span>}
+                        </td>
+                        <td className="explanation-cell">
+                          {item.explanation || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : (
+          /* Detailed Differences List (Cards Mode) */
           <div className="differences-list">
             {/* 1. CONFLICTS SECTION */}
             {(activeTab === 'all' || activeTab === 'conflicts') && conflicts.length > 0 && (
@@ -929,6 +1062,7 @@ export const Compare = () => {
               </GlassPanel>
             )}
           </div>
+          )}
 
           {/* Grounding & Verification Panel */}
           <GroundingPanel 

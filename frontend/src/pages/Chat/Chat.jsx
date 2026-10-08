@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { conversationService } from '../../services/conversationService';
 import { documentService } from '../../services/documentService';
+import MarkdownRenderer from '../../components/ui/MarkdownRenderer';
 import './Chat.css';
 
 export const Chat = () => {
@@ -346,7 +347,11 @@ export const Chat = () => {
                   </div>
 
                   <div className="msg-bubble">
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                    {isUser ? (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                    ) : (
+                      <MarkdownRenderer content={msg.content} />
+                    )}
 
                     {/* Telemetry & Grounding Metadata Bar */}
                     {!isUser && (msg.provider || msg.model || msg.grounding) && (
@@ -361,9 +366,11 @@ export const Chat = () => {
                           <span className="provider-pill">
                             {msg.provider === 'gemini'
                               ? `Gemini (${msg.model || 'gemini-2.5-flash'})`
-                              : msg.provider === 'openai'
-                                ? `OpenAI (${msg.model || 'gpt-4o-mini'})`
-                                : 'Local Fallback'}
+                              : msg.provider === 'groq'
+                                ? `Groq (${msg.model || 'openai/gpt-oss-120b'})`
+                                : msg.provider === 'openai'
+                                  ? `OpenAI (${msg.model || 'gpt-4o-mini'})`
+                                  : (msg.provider === 'failure_notice' ? 'Status Notice' : 'Local Fallback')}
                           </span>
                         )}
                       </div>

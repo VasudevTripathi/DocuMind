@@ -235,11 +235,16 @@ class GroqProvider(BaseLLMProvider):
             "5. Precision: Preserve all numbers, units (e.g., ms, GB, years), percentages, and identifiers verbatim as stated in the context.\n"
             "6. Contradictions: If different sources within the context state conflicting values for the same attribute, "
             "explicitly describe the discrepancy rather than choosing one.\n"
-            "7. Tone: Keep the answer direct, factual, and professional. Avoid filler, introductory pleasantries, and speculative commentary.\n"
+        )
+        base_prompt += (
+            "8. Presentation & Structure:\n"
+            "   - Format the response using clean Markdown with bolding (**Field / Label:**) for key attributes, names, and topics.\n"
+            "   - For structured data, profiles, skills breakdowns, metric comparisons, or multi-item highlights, format the key details into clean Markdown Tables with headers (e.g. | Category | Details | or | Metric | Value |).\n"
+            "   - Use clean, well-spaced bulleted lists with bold prefixes instead of long unbroken walls of text.\n"
         )
         if is_conversational:
             base_prompt += (
-                "8. Conversation History: Prior conversation messages are provided solely to resolve pronoun or follow-up references. "
+                "9. Conversation History: Prior conversation messages are provided solely to resolve pronoun or follow-up references. "
                 "Do NOT treat previous conversation turns as factual document evidence; all facts must come from <untrusted_document_context>.\n"
             )
         return base_prompt
@@ -441,6 +446,11 @@ class GroqProvider(BaseLLMProvider):
             "3. Neutrality: Do NOT judge or decide which document is correct or authoritative. Preserve both sides of any conflict or modification.\n"
             "4. No Hallucination: Do NOT invent, assume, or extrapolate differences not present in the structured data.\n"
             "5. Tone: Concise, professional, direct executive summary.\n"
+            "6. Presentation & Formatting:\n"
+            "   - Use bold labels (**Attribute / Topic**) to highlight key differences.\n"
+            "   - When presenting differences across documents (such as modifications or conflicts), organize them into a clean Markdown Comparison Table:\n"
+            "     | Difference / Topic | Document A | Document B | Impact / Details |\n"
+            "   - Use clean bulleted lists for additions and removals with bold labels.\n"
         )
 
     def explain_comparison(
@@ -688,11 +698,16 @@ class GeminiProvider(BaseLLMProvider):
             "5. Precision: Preserve all numbers, units (e.g., ms, GB, years), percentages, and identifiers verbatim as stated in the context.\n"
             "6. Contradictions: If different sources within the context state conflicting values for the same attribute, "
             "explicitly describe the discrepancy rather than choosing one.\n"
-            "7. Tone: Keep the answer direct, factual, and professional. Avoid filler, introductory pleasantries, and speculative commentary.\n"
+        )
+        base_prompt += (
+            "8. Presentation & Structure:\n"
+            "   - Format the response using clean Markdown with bolding (**Field / Label:**) for key attributes, names, and topics.\n"
+            "   - For structured data, profiles, skills breakdowns, metric comparisons, or multi-item highlights, format the key details into clean Markdown Tables with headers (e.g. | Category | Details | or | Metric | Value |).\n"
+            "   - Use clean, well-spaced bulleted lists with bold prefixes instead of long unbroken walls of text.\n"
         )
         if is_conversational:
             base_prompt += (
-                "8. Conversation History: Prior conversation messages are provided solely to resolve pronoun or follow-up references. "
+                "9. Conversation History: Prior conversation messages are provided solely to resolve pronoun or follow-up references. "
                 "Do NOT treat previous conversation turns as factual document evidence; all facts must come from <untrusted_document_context>.\n"
             )
         return base_prompt
@@ -903,6 +918,11 @@ class GeminiProvider(BaseLLMProvider):
             "3. Neutrality: Do NOT judge or decide which document is correct or authoritative. Preserve both sides of any conflict or modification.\n"
             "4. No Hallucination: Do NOT invent, assume, or extrapolate differences not present in the structured data.\n"
             "5. Tone: Concise, professional, direct executive summary.\n"
+            "6. Presentation & Formatting:\n"
+            "   - Use bold labels (**Attribute / Topic**) to highlight key differences.\n"
+            "   - When presenting differences across documents (such as modifications or conflicts), organize them into a clean Markdown Comparison Table:\n"
+            "     | Difference / Topic | Document A | Document B | Impact / Details |\n"
+            "   - Use clean bulleted lists for additions and removals with bold labels.\n"
         )
 
     def explain_comparison(
