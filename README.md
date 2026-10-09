@@ -378,6 +378,18 @@ graph TB
 </td>
 <td width="50%" align="center">
 
+<a href="assets/screenshots/chat.png">
+  <img src="assets/screenshots/chat.png" alt="AI Playground & Conversational Q&A" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/AI_Playground-RAG_Assistant-79c0ff?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>AI Playground</b> — Multi-document conversational assistant grounded across your library</sub></p>
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
 <a href="assets/screenshots/compare.png">
   <img src="assets/screenshots/compare.png" alt="Document Comparison" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
 </a>
@@ -386,9 +398,7 @@ graph TB
 <p align="center"><sub><b>Document Comparison</b> — Cross-document diffing for conflicting claims, changed specs & additions</sub></p>
 
 </td>
-</tr>
-<tr>
-<td colspan="2" align="center">
+<td width="50%" align="center">
 
 <a href="assets/screenshots/analytics.png">
   <img src="assets/screenshots/analytics.png" alt="Library Analytics" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
