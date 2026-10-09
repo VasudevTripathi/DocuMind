@@ -1,73 +1,48 @@
+<!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                     D O C U M I N D                             ║ -->
+<!-- ║              AI-Powered Document Intelligence                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+
+<!-- Animated gradient header -->
 <div align="center">
 
-<br />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,25:161b22,50:1f6feb,75:58a6ff,100:79c0ff&height=260&section=header&text=🧠%20DocuMind&fontSize=72&fontColor=ffffff&animation=fadeIn&fontAlignY=34&desc=AI-Powered%20Document%20Intelligence%20Platform&descSize=22&descAlignY=56&descAlign=50" width="100%" />
 
-# 🧠 DocuMind
-
-### **AI-Powered Document Intelligence Platform**
-
-_Upload. Analyze. Understand. — Extract deep insights from your documents in seconds._
-
-<br />
-
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
-[![License](https://img.shields.io/badge/License-MIT-F59E0B?style=for-the-badge)](LICENSE)
-
-[![Stars](https://img.shields.io/github/stars/VasudevTripathi/DocuMind?style=social)](https://github.com/VasudevTripathi/DocuMind/stargazers)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square)](https://github.com/VasudevTripathi/DocuMind/pulls)
-[![Issues](https://img.shields.io/github/issues/VasudevTripathi/DocuMind?style=flat-square&color=red)](https://github.com/VasudevTripathi/DocuMind/issues)
+<!-- Animated typing effect -->
+<a href="https://github.com/VasudevTripathi/DocuMind">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=24&duration=3000&pause=1000&color=58A6FF&center=true&vCenter=true&multiline=true&repeat=true&width=700&height=80&lines=Upload+%E2%86%92+Analyze+%E2%86%92+Understand+%E2%86%92+Insight;Turn+Static+Documents+Into+Interactive+Knowledge" alt="Typing SVG" />
+</a>
 
 <br />
 
-<p align="center">
-  <em>DocuMind combines RAG-powered AI, vector search, and a beautiful React frontend<br />to turn static documents into interactive knowledge.</em>
+<!-- Primary badges row -->
+<p>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" /></a>
+  <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/Vite-5.2-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/FAISS-Vector_DB-FF6F00?style=for-the-badge&logo=meta&logoColor=white" />
+</p>
+
+<!-- Secondary badges row -->
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square&logo=opensourceinitiative&logoColor=white" /></a>
+  <a href="https://github.com/VasudevTripathi/DocuMind/stargazers"><img src="https://img.shields.io/github/stars/VasudevTripathi/DocuMind?style=flat-square&logo=github&color=yellow" /></a>
+  <a href="https://github.com/VasudevTripathi/DocuMind/network/members"><img src="https://img.shields.io/github/forks/VasudevTripathi/DocuMind?style=flat-square&logo=git&color=blue" /></a>
+  <a href="https://github.com/VasudevTripathi/DocuMind/issues"><img src="https://img.shields.io/github/issues/VasudevTripathi/DocuMind?style=flat-square&logo=target&color=red" /></a>
+  <a href="https://github.com/VasudevTripathi/DocuMind/pulls"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square&logo=githubactions&logoColor=white" /></a>
+  <img src="https://img.shields.io/github/last-commit/VasudevTripathi/DocuMind?style=flat-square&logo=clockify&color=blueviolet" />
+  <img src="https://img.shields.io/badge/Maintained-Actively-success?style=flat-square&logo=checkmarx&logoColor=white" />
 </p>
 
 <br />
 
-<!-- Add a hero screenshot or demo GIF here -->
-<!-- ![DocuMind Demo](assets/demo.gif) -->
-`📸 Demo GIF / Hero Screenshot — Coming Soon`
-
-<br />
-
-[**Get Started**](#-quick-start) · [**Features**](#-features) · [**Architecture**](#-architecture) · [**API Reference**](#-api-reference) · [**Roadmap**](#-roadmap) · [**Contributing**](#-contributing)
-
----
-
-</div>
-
-<br />
-
-## ✨ Features
-
+<!-- Hero description -->
 <table>
 <tr>
-<td width="50%">
+<td>
 
-### 📄 Document Management
-Upload **PDF** and **DOCX** files through a drag-and-drop interface. Documents are parsed, chunked, and indexed automatically — ready for analysis in seconds.
-
-### 🤖 AI-Powered Analysis
-Generate comprehensive summaries, extract key themes, and surface actionable insights using **Groq (LLaMA 3.3 70B)** or **Google Gemini** as your LLM backbone.
-
-### 💬 Conversational Q&A
-Ask natural-language questions about your documents. DocuMind uses **RAG (Retrieval-Augmented Generation)** with grounded citations so every answer is traceable to its source.
-
-</td>
-<td width="50%">
-
-### 🔍 Semantic Search
-Go beyond keyword matching. FAISS-powered vector search with **SentenceTransformer** embeddings finds conceptually relevant passages across your entire document library.
-
-### ⚖️ Document Comparison
-Compare two documents side-by-side — highlighting shared themes, unique insights, contradictions, and structural differences with AI-driven analysis.
-
-### 📊 Analytics Dashboard
-Visualize upload trends, document statistics, and usage patterns through interactive **Recharts** graphs on a real-time analytics dashboard.
+> **DocuMind** is a full-stack AI document intelligence platform that combines **RAG-powered Q&A**, **vector search**, **document comparison**, and **analytics** — all wrapped in a beautiful React frontend with Framer Motion animations and a glassmorphic design system.
 
 </td>
 </tr>
@@ -75,339 +50,764 @@ Visualize upload trends, document statistics, and usage patterns through interac
 
 <br />
 
-## 🏆 Why DocuMind?
+<!-- Demo placeholder with styled container -->
+<img src="https://img.shields.io/badge/📸_Demo_Preview-Coming_Soon-1f6feb?style=for-the-badge&labelColor=0d1117" />
+
+<!-- ─── replace the badge above with your actual screenshot ─── -->
+<!-- <img src="assets/demo.gif" width="90%" style="border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);" /> -->
+
+<br /><br />
+
+<!-- Quick nav pills -->
+<p>
+  <a href="#-features"><img src="https://img.shields.io/badge/-✨_Features-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+  <a href="#-architecture"><img src="https://img.shields.io/badge/-🏗️_Architecture-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+  <a href="#-quick-start"><img src="https://img.shields.io/badge/-🚀_Quick_Start-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+  <a href="#-api-reference"><img src="https://img.shields.io/badge/-📡_API_Docs-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+  <a href="#-roadmap"><img src="https://img.shields.io/badge/-🗺️_Roadmap-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+  <a href="#-contributing"><img src="https://img.shields.io/badge/-🤝_Contribute-58a6ff?style=for-the-badge&labelColor=0d1117" /></a>
+</p>
+
+</div>
+
+<!-- Wave separator -->
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:0d1117,100:161b22&height=2" width="100%" />
+
+<br />
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- FEATURES                                                        -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=1f6feb&height=45&section=header&text=✨%20Features&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
+
+<div align="center">
+<table>
+<tr>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/📄-Document_Upload-2ea043?style=for-the-badge&labelColor=0d1117" />
+
+**Smart Document Ingestion**
+
+Drag-and-drop **PDF** & **DOCX** files. DocuMind auto-parses, chunks, and indexes every page — ready for AI in seconds.
+
+</td>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/🤖-AI_Analysis-8957e5?style=for-the-badge&labelColor=0d1117" />
+
+**Deep AI Insights**
+
+One-click summaries, theme extraction, and sentiment analysis powered by **LLaMA 3.3 70B** via Groq or **Google Gemini**.
+
+</td>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/💬-RAG_Chat-1f6feb?style=for-the-badge&labelColor=0d1117" />
+
+**Conversational Q&A**
+
+Ask anything. RAG retrieval + reranking + grounded citations ensure every answer is traceable to its source passage.
+
+</td>
+</tr>
+<tr>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/🔍-Vector_Search-da3633?style=for-the-badge&labelColor=0d1117" />
+
+**Semantic Search**
+
+FAISS-powered similarity search with **SentenceTransformer** embeddings finds conceptually relevant content — not just keyword matches.
+
+</td>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/⚖️-Compare_Docs-e3b341?style=for-the-badge&labelColor=0d1117" />
+
+**Document Comparison**
+
+AI-driven side-by-side comparison highlights shared themes, unique insights, contradictions, and structural differences.
+
+</td>
+<td align="center" width="33%">
+
+<img src="https://img.shields.io/badge/📊-Analytics-f78166?style=for-the-badge&labelColor=0d1117" />
+
+**Real-Time Analytics**
+
+Interactive **Recharts** dashboard visualizes upload trends, document stats, and AI usage patterns at a glance.
+
+</td>
+</tr>
+</table>
+</div>
+
+<br />
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- WHY DOCUMIND                                                    -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=8957e5&height=45&section=header&text=🏆%20Why%20DocuMind%3F&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
 
 <div align="center">
 
-| | Feature | Description |
-|---|---|---|
-| 🧩 | **Full RAG Pipeline** | Chunking → Embedding → FAISS indexing → Retrieval → Reranking → Grounded LLM generation |
-| ⚡ | **Blazing Fast** | FastAPI async backend + Vite HMR frontend — sub-second feedback loops |
-| 🔌 | **Multi-LLM Support** | Swap between Groq and Gemini with a single env variable |
-| 🎯 | **Grounded Answers** | Every AI response cites the exact source passages it drew from |
-| 🛡️ | **Local-First Embeddings** | SentenceTransformer runs on your machine — no data leaves your network |
-| 🎨 | **Premium UX** | Framer Motion animations, Lucide icons, and a polished glassmorphic UI |
+```
+ ╭────────────────────────────────────────────────────────────────────────╮
+ │                                                                        │
+ │   🧩  Full RAG Pipeline    Chunk → Embed → Index → Retrieve → Answer  │
+ │   ⚡  Blazing Fast         FastAPI async + Vite HMR = <1s feedback    │
+ │   🔌  Multi-LLM Support   Groq (LLaMA 3.3) ↔ Google Gemini           │
+ │   🎯  Grounded Answers    Every response cites exact source passages   │
+ │   🛡️  Local Embeddings    SentenceTransformer — your data stays local │
+ │   🎨  Premium UX          Framer Motion + Lucide + Glassmorphism      │
+ │   📈  Built-in Analytics  Track usage, trends, and document insights   │
+ │   🔄  Live Conversations  Persistent chat threads with full history    │
+ │                                                                        │
+ ╰────────────────────────────────────────────────────────────────────────╯
+```
 
 </div>
 
 <br />
 
-## 🛠️ Tech Stack
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- TECH STACK                                                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
 
 <div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=2ea043&height=45&section=header&text=🛠️%20Tech%20Stack&fontSize=28&fontColor=ffffff&animation=twinkling" />
+
+<br /><br />
+
+<!-- Tech stack icons using skillicons.dev -->
+<a href="#"><img src="https://skillicons.dev/icons?i=python,fastapi,react,vite,sqlite,html,css,js&theme=dark&perline=8" /></a>
+
+<br /><br />
 
 | Layer | Technologies |
 |:---:|---|
-| **Frontend** | React 18 · Vite 5 · React Router 6 · TanStack Query · Framer Motion · Recharts · Lucide Icons |
-| **Backend** | Python 3.11+ · FastAPI · SQLAlchemy 2.0 · Pydantic v2 · Uvicorn |
-| **AI / ML** | Groq (LLaMA 3.3 70B) · Google Gemini · SentenceTransformers · FAISS · scikit-learn |
-| **Data** | SQLite · FAISS Vector Store · PyPDF · python-docx |
+| **🖥️ Frontend** | `React 18` · `Vite 5` · `React Router 6` · `TanStack Query` · `Framer Motion` · `Recharts` · `Lucide React` · `react-markdown` |
+| **⚙️ Backend** | `Python 3.11+` · `FastAPI` · `SQLAlchemy 2.0` · `Pydantic v2` · `Uvicorn` · `python-multipart` |
+| **🧠 AI / ML** | `Groq (LLaMA 3.3 70B)` · `Google Gemini 2.5` · `SentenceTransformers` · `FAISS` · `scikit-learn` |
+| **💾 Data** | `SQLite` · `FAISS Vector Store` · `PyPDF` · `python-docx` · `pandas` · `numpy` |
 
 </div>
 
 <br />
 
-## 🏗️ Architecture
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- ARCHITECTURE                                                    -->
+<!-- ════════════════════════════════════════════════════════════════ -->
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (React + Vite)                  │
-│  Landing · Dashboard · Documents · Workspace · Chat · Compare   │
-│  Analytics · Semantic Search · AI Copilot Panel                 │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  REST API (JSON)
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      BACKEND (FastAPI)                          │
-│                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐   │
-│  │ Documents│  │ Analysis │  │  Ask/Chat │  │   Compare     │   │
-│  │   API    │  │   API    │  │    API    │  │     API       │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬────────┘   │
-│       │              │             │               │            │
-│       ▼              ▼             ▼               ▼            │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                   SERVICE LAYER                         │    │
-│  │  Document Pipeline · LLM Service · RAG Service          │    │
-│  │  Retrieval Service · Embedding Service · Reranker        │    │
-│  │  Conversation Service · Comparison Service               │    │
-│  │  Grounding Service · Vector Store · Chunk Service        │    │
-│  └────────────┬───────────────────┬────────────────────────┘    │
-│               │                   │                             │
-│       ┌───────▼───────┐   ┌──────▼──────┐                      │
-│       │   SQLite DB   │   │ FAISS Index │                      │
-│       │  (metadata)   │   │ (vectors)   │                      │
-│       └───────────────┘   └─────────────┘                      │
-└─────────────────────────────────────────────────────────────────┘
-                             │
-                   ┌─────────▼─────────┐
-                   │   LLM Providers   │
-                   │  Groq · Gemini    │
-                   └───────────────────┘
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=da3633&height=45&section=header&text=🏗️%20Architecture&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
+
+```mermaid
+graph TB
+    subgraph Frontend["🖥️ Frontend — React + Vite"]
+        Landing["🏠 Landing"]
+        Dashboard["📋 Dashboard"]
+        Docs["📄 Documents"]
+        Workspace["🔧 Workspace"]
+        Chat["💬 Chat"]
+        Compare["⚖️ Compare"]
+        Analytics["📊 Analytics"]
+        Copilot["🤖 AI Copilot"]
+    end
+
+    subgraph API["⚡ API Layer — FastAPI"]
+        DocAPI["📄 /documents"]
+        AnalysisAPI["🔬 /analysis"]
+        AskAPI["💬 /ask"]
+        SearchAPI["🔍 /search"]
+        CompareAPI["⚖️ /compare"]
+        ConvoAPI["🗂️ /conversations"]
+        AnalyticsAPI["📊 /analytics"]
+    end
+
+    subgraph Services["🧩 Service Layer"]
+        Pipeline["Document Pipeline"]
+        LLM["LLM Service"]
+        RAG["RAG Service"]
+        Retrieval["Retrieval + Reranker"]
+        Embedding["Embedding Service"]
+        Grounding["Grounding Service"]
+        VectorSvc["Vector Store"]
+        ConvoSvc["Conversation Service"]
+    end
+
+    subgraph Storage["💾 Storage"]
+        SQLite[("🗄️ SQLite DB")]
+        FAISS[("🔮 FAISS Index")]
+        Files[("📁 File Store")]
+    end
+
+    subgraph LLMProviders["☁️ LLM Providers"]
+        Groq["⚡ Groq — LLaMA 3.3 70B"]
+        Gemini["💎 Google Gemini 2.5"]
+    end
+
+    Frontend -->|REST API| API
+    API --> Services
+    Services --> Storage
+    Services --> LLMProviders
+
+    style Frontend fill:#161b22,stroke:#58a6ff,color:#c9d1d9
+    style API fill:#161b22,stroke:#3fb950,color:#c9d1d9
+    style Services fill:#161b22,stroke:#d29922,color:#c9d1d9
+    style Storage fill:#161b22,stroke:#f85149,color:#c9d1d9
+    style LLMProviders fill:#161b22,stroke:#bc8cff,color:#c9d1d9
 ```
 
 <br />
 
-## 📸 Screenshots
+<details>
+<summary><b>📐 Detailed Data Flow (click to expand)</b></summary>
+<br />
+
+```
+                    ┌─────────────────────────────┐
+                    │      User uploads a PDF      │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │    Document Parser (PyPDF)    │
+                    │    Extracts raw text content  │
+                    └──────────────┬──────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │   Chunker (600-word chunks)   │
+                    │   with 80-word overlap        │
+                    └──────────────┬──────────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                     │
+   ┌──────────▼────────┐  ┌───────▼───────┐  ┌─────────▼────────┐
+   │  SQLite Database   │  │  Embedding    │  │  LLM Analysis    │
+   │  (metadata +       │  │  Service      │  │  (summary +      │
+   │   chunk text)      │  │  (MiniLM-L6)  │  │   key insights)  │
+   └───────────────────┘  └───────┬───────┘  └──────────────────┘
+                                   │
+                          ┌────────▼────────┐
+                          │   FAISS Index    │
+                          │  (vector store)  │
+                          └────────┬────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │  User asks a question (RAG)  │
+                    └──────────────┬──────────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                     │
+   ┌──────────▼────────┐  ┌───────▼───────┐  ┌─────────▼────────┐
+   │  Query Embedding   │  │  FAISS        │  │  Reranker         │
+   │  (same MiniLM)     │  │  Retrieval    │  │  (relevance       │
+   │                     │  │  (top-k)     │  │   scoring)        │
+   └───────────────────┘  └──────────────┘  └─────────┬────────┘
+                                                       │
+                                            ┌──────────▼──────────┐
+                                            │  Grounding Service   │
+                                            │  (cite sources)      │
+                                            └──────────┬──────────┘
+                                                       │
+                                            ┌──────────▼──────────┐
+                                            │   LLM Generation     │
+                                            │   (grounded answer)  │
+                                            └─────────────────────┘
+```
+
+</details>
+
+<br />
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREENSHOTS                                                     -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=e3b341&height=45&section=header&text=📸%20Screenshots&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
 
 <div align="center">
 
-<!-- Replace with actual screenshots -->
+<!-- Replace placeholders with actual screenshots -->
 
-| Dashboard | Document Workspace | AI Chat |
-|:-:|:-:|:-:|
-| `Add screenshot` | `Add screenshot` | `Add screenshot` |
+<table>
+<tr>
+<td align="center">
 
-| Document Comparison | Analytics | Semantic Search |
-|:-:|:-:|:-:|
-| `Add screenshot` | `Add screenshot` | `Add screenshot` |
+<img src="https://img.shields.io/badge/Dashboard-Preview-1f6feb?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add dashboard screenshot`
+
+</td>
+<td align="center">
+
+<img src="https://img.shields.io/badge/Document_Workspace-Preview-2ea043?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add workspace screenshot`
+
+</td>
+</tr>
+<tr>
+<td align="center">
+
+<img src="https://img.shields.io/badge/AI_Chat-Preview-8957e5?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add chat screenshot`
+
+</td>
+<td align="center">
+
+<img src="https://img.shields.io/badge/Analytics-Preview-f78166?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add analytics screenshot`
+
+</td>
+</tr>
+<tr>
+<td align="center">
+
+<img src="https://img.shields.io/badge/Document_Comparison-Preview-da3633?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add comparison screenshot`
+
+</td>
+<td align="center">
+
+<img src="https://img.shields.io/badge/Semantic_Search-Preview-e3b341?style=for-the-badge&labelColor=0d1117" /><br /><br />
+`📸 Add search screenshot`
+
+</td>
+</tr>
+</table>
 
 </div>
 
 <br />
 
-## 🚀 Quick Start
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- QUICK START                                                     -->
+<!-- ════════════════════════════════════════════════════════════════ -->
 
-### Prerequisites
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=3fb950&height=45&section=header&text=🚀%20Quick%20Start&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
 
-- **Python** 3.11+
-- **Node.js** 18+
-- A **Groq** API key ([get one free](https://console.groq.com)) and/or a **Gemini** API key
+<br />
 
-### 1 · Clone the Repository
+### 📋 Prerequisites
+
+<table>
+<tr>
+<td>
+
+| Requirement | Version |
+|---|---|
+| ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) | `3.11+` |
+| ![Node](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white) | `18+` |
+| ![API](https://img.shields.io/badge/API_Key-Groq_or_Gemini-orange?style=flat-square) | Required |
+
+</td>
+<td>
+
+> 💡 **Get a free Groq API key** at [console.groq.com](https://console.groq.com)
+>
+> 💡 **Get a Gemini API key** at [aistudio.google.com](https://aistudio.google.com)
+
+</td>
+</tr>
+</table>
+
+---
+
+### Step 1 · Clone the Repository
 
 ```bash
 git clone https://github.com/VasudevTripathi/DocuMind.git
 cd DocuMind
 ```
 
-### 2 · Backend Setup
+---
+
+### Step 2 · Backend Setup
 
 ```bash
 cd backend
 
-# Create and activate a virtual environment
+# Create & activate virtual environment
 python -m venv .venv
-source .venv/bin/activate        # macOS / Linux
-# .venv\Scripts\activate         # Windows
+source .venv/bin/activate          # macOS / Linux
+# .venv\Scripts\activate           # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3 · Environment Variables
+---
 
-Copy the example env file and fill in your API keys:
+### Step 3 · Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
+Open `backend/.env` and set your API keys:
+
 ```ini
-# .env — Required
+# ── App Config ─────────────────────────────────────────────────
 APP_NAME=DocuMind AI
 DATABASE_URL=sqlite:///./data/db/documind.db
 UPLOAD_DIR=./data/uploads
 MAX_UPLOAD_SIZE_MB=50
 FRONTEND_URL=http://localhost:5173
 
-# LLM Provider — choose "groq" or "gemini"
-LLM_PROVIDER=groq
-GROQ_API_KEY=your_groq_api_key_here
+# ── LLM Provider ──────────────────────────────────────────────
+LLM_PROVIDER=groq                           # "groq" or "gemini"
+GROQ_API_KEY=gsk_your_key_here              # 🔑 Set your Groq API key
 GROQ_MODEL=llama-3.3-70b-versatile
 
-# Optional: Gemini as secondary provider
-GEMINI_API_KEY=your_gemini_api_key_here
+# ── Optional: Gemini ──────────────────────────────────────────
+GEMINI_API_KEY=your_gemini_key_here          # 🔑 Set your Gemini API key
 GEMINI_MODEL=gemini-2.5-flash
 
-# Embeddings & Vector Store (runs locally)
+# ── Embeddings & Vector Store (runs locally) ──────────────────
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 VECTOR_STORE_DIR=./data/vector_store
 
-# RAG tuning
+# ── RAG Tuning ────────────────────────────────────────────────
 RAG_CHUNK_SIZE_WORDS=600
 RAG_CHUNK_OVERLAP_WORDS=80
 RAG_MAX_CONTEXT_WORDS=2500
 ```
 
-### 4 · Start the Backend
+---
+
+### Step 4 · Launch the Backend
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-The API will be available at **http://localhost:8000** — interactive docs at [/docs](http://localhost:8000/docs).
+<div align="center">
 
-### 5 · Frontend Setup
+> 🟢 API running at **http://localhost:8000** — Swagger docs at [/docs](http://localhost:8000/docs)
+
+</div>
+
+---
+
+### Step 5 · Launch the Frontend
 
 ```bash
 cd ../frontend
 
-# Install dependencies
 npm install
-
-# Start the dev server
 npm run dev
 ```
 
-Open **http://localhost:5173** and start uploading documents. 🎉
+<div align="center">
+
+> 🟢 App running at **http://localhost:5173** — Start uploading documents! 🎉
+
+</div>
 
 <br />
 
-## 📡 API Reference
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- API REFERENCE                                                   -->
+<!-- ════════════════════════════════════════════════════════════════ -->
 
-All endpoints are prefixed with `/api`. Full interactive docs available at `/docs` (Swagger UI).
-
-| Method | Endpoint | Description |
-|:---:|---|---|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/documents/upload` | Upload a document (PDF / DOCX) |
-| `GET` | `/api/documents` | List all documents |
-| `GET` | `/api/documents/{id}` | Get document details |
-| `DELETE` | `/api/documents/{id}` | Delete a document |
-| `POST` | `/api/analysis/{id}/analyze` | Run AI analysis on a document |
-| `POST` | `/api/ask` | Ask a question (RAG-powered Q&A) |
-| `POST` | `/api/search` | Semantic search across documents |
-| `POST` | `/api/compare` | Compare two documents |
-| `GET` | `/api/conversations` | List conversation threads |
-| `GET` | `/api/conversations/{id}` | Get conversation history |
-| `GET` | `/api/analytics/overview` | Analytics dashboard data |
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=f78166&height=45&section=header&text=📡%20API%20Reference&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
 
 <br />
 
-## 📁 Folder Structure
+All endpoints are served under `/api`. Full interactive docs available at **`/docs`** (Swagger UI).
+
+<div align="center">
+
+| | Method | Endpoint | Description |
+|:---:|:---:|---|---|
+| 💚 | `GET` | `/api/health` | Health check & status |
+| 📤 | `POST` | `/api/documents/upload` | Upload a document (PDF / DOCX) |
+| 📋 | `GET` | `/api/documents` | List all documents |
+| 📄 | `GET` | `/api/documents/{id}` | Get document details & metadata |
+| 🗑️ | `DELETE` | `/api/documents/{id}` | Delete a document & its vectors |
+| 🔬 | `POST` | `/api/analysis/{id}/analyze` | Run AI analysis on a document |
+| 💬 | `POST` | `/api/ask` | Ask a question (RAG-powered Q&A) |
+| 🔍 | `POST` | `/api/search` | Semantic search across documents |
+| ⚖️ | `POST` | `/api/compare` | Compare two documents |
+| 🗂️ | `GET` | `/api/conversations` | List conversation threads |
+| 💬 | `GET` | `/api/conversations/{id}` | Get conversation history |
+| 📊 | `GET` | `/api/analytics/overview` | Analytics & usage metrics |
+
+</div>
+
+<br />
+
+<details>
+<summary><b>📝 Example: Upload & Analyze a Document (click to expand)</b></summary>
+<br />
+
+```bash
+# Upload a PDF
+curl -X POST http://localhost:8000/api/documents/upload \
+  -F "file=@my_report.pdf"
+
+# Response → { "id": 1, "filename": "my_report.pdf", "status": "processed", ... }
+
+# Run AI analysis
+curl -X POST http://localhost:8000/api/analysis/1/analyze
+
+# Ask a question
+curl -X POST http://localhost:8000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What are the key findings?", "document_id": 1}'
+```
+
+</details>
+
+<br />
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- FOLDER STRUCTURE                                                -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=bc8cff&height=45&section=header&text=📁%20Project%20Structure&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
 
 ```
 DocuMind/
-├── backend/
+│
+├── 🔧 backend/
 │   ├── app/
-│   │   ├── api/                # Route handlers
-│   │   │   ├── documents.py    # Upload, list, delete
-│   │   │   ├── analysis.py     # AI analysis endpoints
-│   │   │   ├── ask.py          # RAG Q&A
-│   │   │   ├── search.py       # Semantic search
-│   │   │   ├── compare.py      # Document comparison
-│   │   │   ├── conversations.py# Chat history
-│   │   │   ├── analytics.py    # Usage analytics
-│   │   │   └── health.py       # Health check
-│   │   ├── core/               # Config & database
-│   │   ├── models/             # SQLAlchemy models
-│   │   ├── schemas/            # Pydantic schemas
-│   │   ├── services/           # Business logic
-│   │   │   ├── document_pipeline.py
-│   │   │   ├── llm_service.py
-│   │   │   ├── rag_service.py
-│   │   │   ├── retrieval_service.py
-│   │   │   ├── embedding_service.py
-│   │   │   ├── vector_store.py
-│   │   │   ├── reranker.py
-│   │   │   ├── grounding_service.py
+│   │   ├── api/                    # 🌐 Route handlers
+│   │   │   ├── documents.py        #     Upload, list, delete
+│   │   │   ├── analysis.py         #     AI analysis endpoints
+│   │   │   ├── ask.py              #     RAG Q&A
+│   │   │   ├── search.py           #     Semantic search
+│   │   │   ├── compare.py          #     Document comparison
+│   │   │   ├── conversations.py    #     Chat history
+│   │   │   ├── analytics.py        #     Usage analytics
+│   │   │   └── health.py           #     Health check
+│   │   ├── core/                   # ⚙️ Config & database setup
+│   │   ├── models/                 # 📦 SQLAlchemy ORM models
+│   │   ├── schemas/                # 📐 Pydantic request/response schemas
+│   │   ├── services/               # 🧠 Business logic layer
+│   │   │   ├── document_pipeline.py#     End-to-end ingestion
+│   │   │   ├── llm_service.py      #     LLM orchestration
+│   │   │   ├── llm_provider.py     #     Groq & Gemini adapters
+│   │   │   ├── rag_service.py      #     RAG orchestration
+│   │   │   ├── retrieval_service.py#     Chunk retrieval
+│   │   │   ├── embedding_service.py#     SentenceTransformer
+│   │   │   ├── vector_store.py     #     FAISS operations
+│   │   │   ├── reranker.py         #     Result reranking
+│   │   │   ├── grounding_service.py#     Source citation
 │   │   │   └── ...
-│   │   ├── ml/                 # ML model training & prediction
-│   │   └── evaluation/         # RAG evaluation metrics
-│   ├── data/                   # Uploads, DB, vector store
-│   ├── scripts/                # Utility scripts
-│   ├── tests/                  # Pytest test suite
+│   │   ├── ml/                     # 🤖 ML model training & prediction
+│   │   └── evaluation/             # 📊 RAG evaluation metrics
+│   ├── data/                       # 💾 Uploads, DB, vector store
+│   ├── scripts/                    # 🔨 Utility scripts
+│   ├── tests/                      # 🧪 Pytest test suite
 │   ├── requirements.txt
 │   └── .env.example
 │
-├── frontend/
+├── 🎨 frontend/
 │   ├── src/
-│   │   ├── components/         # Reusable UI components
-│   │   │   ├── layout/         # AppShell, navigation
-│   │   │   ├── ui/             # MarkdownRenderer, shared UI
-│   │   │   ├── Documents/      # Document-specific components
-│   │   │   └── Compare/        # Comparison components
-│   │   ├── pages/              # Route-level pages
-│   │   │   ├── Landing/        # Marketing landing page
-│   │   │   ├── Dashboard/      # Main dashboard + AI Copilot
-│   │   │   ├── Documents/      # Document management
-│   │   │   ├── Workspace/      # Single-document workspace
-│   │   │   ├── Chat/           # Conversational Q&A
-│   │   │   ├── Compare/        # Side-by-side comparison
-│   │   │   └── Analytics/      # Usage analytics
-│   │   ├── services/           # API client layer
-│   │   ├── hooks/              # Custom React hooks
-│   │   └── styles/             # Global styles
+│   │   ├── components/             # 🧩 Reusable UI components
+│   │   │   ├── layout/             #     AppShell, navigation
+│   │   │   ├── ui/                 #     MarkdownRenderer, shared UI
+│   │   │   ├── Documents/          #     Document cards & rows
+│   │   │   └── Compare/            #     Comparison components
+│   │   ├── pages/                  # 📄 Route-level pages
+│   │   │   ├── Landing/            #     Marketing landing page
+│   │   │   ├── Dashboard/          #     Dashboard + AI Copilot panel
+│   │   │   ├── Documents/          #     Document management
+│   │   │   ├── Workspace/          #     Single-document workspace
+│   │   │   ├── Chat/               #     Conversational Q&A
+│   │   │   ├── Compare/            #     Side-by-side comparison
+│   │   │   └── Analytics/          #     Usage analytics charts
+│   │   ├── services/               # 🔌 API client layer
+│   │   ├── hooks/                  # 🪝 Custom React hooks
+│   │   └── styles/                 # 🎨 Global styles
 │   ├── package.json
 │   └── vite.config.js
 │
 ├── pytest.ini
 ├── .gitignore
-└── README.md                   ← You are here
+└── README.md                       ← You are here
 ```
 
 <br />
 
-## 🗺️ Roadmap
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- ROADMAP                                                         -->
+<!-- ════════════════════════════════════════════════════════════════ -->
 
-- [x] Document upload & parsing (PDF, DOCX)
-- [x] AI-powered summarization & analysis
-- [x] RAG-based conversational Q&A
-- [x] Semantic vector search (FAISS)
-- [x] Document comparison engine
-- [x] Analytics dashboard
-- [x] Multi-LLM support (Groq + Gemini)
-- [ ] 🔜 User authentication & multi-tenancy
-- [ ] 🔜 Batch upload & folder ingestion
-- [ ] 🔜 Export analysis reports (PDF / Markdown)
-- [ ] 🔜 Knowledge graph visualization
-- [ ] 🔜 Collaborative annotations & highlights
-- [ ] 🔜 Plugin system for custom extractors
-- [ ] 🔜 Docker Compose one-click deployment
-- [ ] 🔜 Webhook & Zapier integrations
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=d29922&height=45&section=header&text=🗺️%20Roadmap&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
 
 <br />
-
-## 🤝 Contributing
-
-Contributions make the open-source community an amazing place to learn, inspire, and create. **Any contributions you make are greatly appreciated.**
-
-1. **Fork** the repository
-2. **Create** your feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'feat: add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-> [!TIP]
-> Check out the [open issues](https://github.com/VasudevTripathi/DocuMind/issues) for a list of proposed features and known bugs. Issues labeled `good first issue` are a great place to start.
-
-### Development Guidelines
-
-- Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
-- Write tests for new backend features (`pytest`)
-- Keep PRs focused — one feature or fix per PR
-- Update documentation when adding new endpoints or features
-
-<br />
-
-## 📄 License
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-
-<br />
-
-## 💬 Contact & Support
 
 <div align="center">
 
-| | |
-|---|---|
-| 🐛 **Found a bug?** | [Open an Issue](https://github.com/VasudevTripathi/DocuMind/issues/new) |
-| 💡 **Feature request?** | [Start a Discussion](https://github.com/VasudevTripathi/DocuMind/discussions) |
-| ⭐ **Like DocuMind?** | Give it a star — it helps a lot! |
+| Status | Feature | Details |
+|:---:|---|---|
+| ✅ | Document upload & parsing | PDF + DOCX support |
+| ✅ | AI-powered analysis | Summaries, themes, insights |
+| ✅ | RAG conversational Q&A | Grounded, multi-turn chat |
+| ✅ | Semantic vector search | FAISS + SentenceTransformers |
+| ✅ | Document comparison | AI-driven side-by-side diff |
+| ✅ | Analytics dashboard | Interactive Recharts visuals |
+| ✅ | Multi-LLM support | Groq ↔ Gemini hot-swap |
+| 🔜 | User authentication | Multi-tenancy & OAuth |
+| 🔜 | Batch upload | Folder ingestion & bulk processing |
+| 🔜 | Export reports | PDF / Markdown export |
+| 🔜 | Knowledge graph | Visualize entity relationships |
+| 🔜 | Collaborative annotations | Highlights & shared notes |
+| 🔜 | Plugin system | Custom extractors & processors |
+| 🔜 | Docker Compose | One-click deployment |
+| 🔜 | Webhooks & integrations | Zapier, Slack, Notion |
+
+</div>
 
 <br />
 
----
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- CONTRIBUTING                                                    -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=58a6ff&height=45&section=header&text=🤝%20Contributing&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
 
 <br />
 
-<strong>Built with ❤️ by <a href="https://github.com/VasudevTripathi">Vasudev Tripathi</a></strong>
+Contributions make the open-source community an amazing place to learn, inspire, and create. **Any contributions you make are greatly appreciated.**
+
+<div align="center">
+
+```
+ Fork It  →  Branch It  →  Code It  →  Push It  →  PR It
+```
+
+</div>
+
+```bash
+# 1. Fork & clone
+git clone https://github.com/<your-username>/DocuMind.git
+
+# 2. Create a feature branch
+git checkout -b feature/amazing-feature
+
+# 3. Make your changes & commit
+git commit -m "feat: add amazing feature"
+
+# 4. Push & open a PR
+git push origin feature/amazing-feature
+```
+
+<table>
+<tr>
+<td>
+
+**📌 Guidelines**
+
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) for messages
+- Write tests for new backend features (`pytest`)
+- One feature or fix per PR — keep it focused
+- Update docs when adding endpoints or features
+
+</td>
+<td>
+
+**🏷️ Good First Issues**
+
+Check out issues labeled [`good first issue`](https://github.com/VasudevTripathi/DocuMind/labels/good%20first%20issue) — perfect for getting started!
+
+[![Issues](https://img.shields.io/github/issues/VasudevTripathi/DocuMind/good%20first%20issue?style=for-the-badge&color=7057ff&label=Good%20First%20Issues)](https://github.com/VasudevTripathi/DocuMind/labels/good%20first%20issue)
+
+</td>
+</tr>
+</table>
 
 <br />
 
-<sub>If DocuMind helped you, consider giving it a ⭐ — it keeps the project alive.</sub>
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- LICENSE                                                          -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=3d444d&height=45&section=header&text=📄%20License&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
+
+<div align="center">
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg?style=for-the-badge)](LICENSE)
+
+</div>
+
+<br />
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- CONTACT                                                         -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=soft&color=1f6feb&height=45&section=header&text=💬%20Contact%20%26%20Support&fontSize=28&fontColor=ffffff&animation=twinkling" />
+</div>
+
+<br />
+
+<div align="center">
+
+<a href="https://github.com/VasudevTripathi/DocuMind/issues/new"><img src="https://img.shields.io/badge/🐛_Report_Bug-red?style=for-the-badge&labelColor=0d1117" /></a>
+<a href="https://github.com/VasudevTripathi/DocuMind/issues/new"><img src="https://img.shields.io/badge/💡_Request_Feature-blue?style=for-the-badge&labelColor=0d1117" /></a>
+<a href="https://github.com/VasudevTripathi/DocuMind/discussions"><img src="https://img.shields.io/badge/💬_Discussion-purple?style=for-the-badge&labelColor=0d1117" /></a>
+
+</div>
+
+<br />
+
+<!-- Animated gradient footer -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:79c0ff,25:58a6ff,50:1f6feb,75:161b22,100:0d1117&height=150&section=footer" width="100%" />
+
+<div align="center">
+
+<br />
+
+**Built with ❤️ by [Vasudev Tripathi](https://github.com/VasudevTripathi)**
+
+<br />
+
+<a href="https://github.com/VasudevTripathi/DocuMind/stargazers">
+  <img src="https://img.shields.io/badge/⭐_Star_this_repo-It_helps_a_lot!-yellow?style=for-the-badge&labelColor=0d1117" />
+</a>
+
+<br /><br />
+
+<sub>🧠 DocuMind — Because your documents deserve intelligence.</sub>
 
 <br /><br />
 
