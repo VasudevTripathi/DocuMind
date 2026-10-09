@@ -47,13 +47,23 @@ origins = [
     settings.FRONTEND_URL,
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
 ]
-# Remove any duplicates while preserving order
-unique_origins = list(dict.fromkeys([o.rstrip("/") for o in origins if o]))
+# Support comma-separated FRONTEND_URL and strip trailing slashes
+expanded_origins = []
+for o in origins:
+    if o:
+        for sub in o.split(","):
+            cleaned = sub.strip().rstrip("/")
+            if cleaned:
+                expanded_origins.append(cleaned)
+
+unique_origins = list(dict.fromkeys(expanded_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=unique_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.vercel\.app|.*\.onrender\.com|.*\.netlify\.app|.*\.railway\.app)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
