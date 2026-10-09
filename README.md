@@ -48,13 +48,9 @@
 </tr>
 </table>
 
-<br />
-
-<!-- Demo placeholder with styled container -->
-<img src="https://img.shields.io/badge/📸_Demo_Preview-Coming_Soon-1f6feb?style=for-the-badge&labelColor=0d1117" />
-
-<!-- ─── replace the badge above with your actual screenshot ─── -->
-<!-- <img src="assets/demo.gif" width="90%" style="border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);" /> -->
+<a href="assets/screenshots/dashboard.png">
+  <img src="assets/screenshots/dashboard.png" alt="DocuMind Interface Preview" width="92%" style="border-radius:12px;border:1px solid #30363d;box-shadow:0 8px 32px rgba(0,0,0,0.4);" />
+</a>
 
 <br /><br />
 
@@ -346,48 +342,60 @@ graph TB
 
 <div align="center">
 
-<!-- Replace placeholders with actual screenshots -->
-
 <table>
 <tr>
-<td align="center">
+<td width="50%" align="center">
 
-<img src="https://img.shields.io/badge/Dashboard-Preview-1f6feb?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add dashboard screenshot`
-
-</td>
-<td align="center">
-
-<img src="https://img.shields.io/badge/Document_Workspace-Preview-2ea043?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add workspace screenshot`
+<a href="assets/screenshots/dashboard.png">
+  <img src="assets/screenshots/dashboard.png" alt="DocuMind Dashboard" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/Overview-Dashboard-1f6feb?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>Central Dashboard</b> — Quick actions, document dropzone & live stats overview</sub></p>
 
 </td>
-</tr>
-<tr>
-<td align="center">
+<td width="50%" align="center">
 
-<img src="https://img.shields.io/badge/AI_Chat-Preview-8957e5?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add chat screenshot`
-
-</td>
-<td align="center">
-
-<img src="https://img.shields.io/badge/Analytics-Preview-f78166?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add analytics screenshot`
+<a href="assets/screenshots/documents.png">
+  <img src="assets/screenshots/documents.png" alt="Documents Management" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/Library-Documents-2ea043?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>Document Library</b> — Multi-format filter (PDF, DOCX, TXT), search & processing status</sub></p>
 
 </td>
 </tr>
 <tr>
-<td align="center">
+<td width="50%" align="center">
 
-<img src="https://img.shields.io/badge/Document_Comparison-Preview-da3633?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add comparison screenshot`
+<a href="assets/screenshots/workspace.png">
+  <img src="assets/screenshots/workspace.png" alt="Document Workspace" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/AI_Intelligence-Workspace-8957e5?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>Document Workspace</b> — AI executive summary, key findings, document intelligence & Copilot chat</sub></p>
 
 </td>
-<td align="center">
+<td width="50%" align="center">
 
-<img src="https://img.shields.io/badge/Semantic_Search-Preview-e3b341?style=for-the-badge&labelColor=0d1117" /><br /><br />
-`📸 Add search screenshot`
+<a href="assets/screenshots/compare.png">
+  <img src="assets/screenshots/compare.png" alt="Document Comparison" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/Diff_Engine-Compare-da3633?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>Document Comparison</b> — Cross-document diffing for conflicting claims, changed specs & additions</sub></p>
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+
+<a href="assets/screenshots/analytics.png">
+  <img src="assets/screenshots/analytics.png" alt="Library Analytics" width="100%" style="border-radius: 8px; border: 1px solid #30363d;" />
+</a>
+<br /><br />
+<img src="https://img.shields.io/badge/Intelligence_Hub-Analytics-f78166?style=for-the-badge&labelColor=0d1117" />
+<p align="center"><sub><b>Library Analytics</b> — Vector embeddings count, category breakdown & processing pipeline health</sub></p>
 
 </td>
 </tr>
