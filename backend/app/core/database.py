@@ -1,11 +1,29 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
 
+is_sqlite = "sqlite" in settings.resolved_database_url
+
+connect_args = {}
+if is_sqlite:
+    connect_args = {
+        "check_same_thread": False,
+        "timeout": 30.0,  # Wait up to 30s instead of failing immediately with locked error
+    }
+
 engine = create_engine(
     settings.resolved_database_url,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.resolved_database_url else {}
+    connect_args=connect_args
 )
+
+if is_sqlite:
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -27,6 +45,9 @@ def init_db():
     try:
         with engine.connect() as conn:
             from sqlalchemy import text
+            if is_sqlite:
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA busy_timeout=30000;"))
             cursor = conn.execute(text("PRAGMA table_info(document_analyses);"))
             existing_cols = {row[1] for row in cursor.fetchall()}
             if "provider" not in existing_cols:
