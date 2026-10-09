@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+import { API_BASE } from './apiConfig';
 
 export const analyticsService = {
   async getAnalytics() {
