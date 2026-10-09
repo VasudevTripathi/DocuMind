@@ -459,7 +459,7 @@ cd DocuMind
 
 ---
 
-### Step 2 · Backend Setup
+### Step 2 · Backend Setup (One-time)
 
 ```bash
 cd backend
@@ -475,11 +475,16 @@ pip install -r requirements.txt
 
 ---
 
-### Step 3 · Configure Environment
+### Step 3 · Configure Environment (One-time)
+
+Copy the template using `-n` (no-clobber) so you never accidentally overwrite existing keys:
 
 ```bash
-cp .env.example .env
+cp -n .env.example .env
 ```
+
+> [!NOTE]
+> Environment setup and package installation are **one-time steps**. Never run raw `cp .env.example .env` again after entering your keys, as it will reset them to defaults.
 
 Open `backend/.env` and set your API keys:
 
@@ -514,7 +519,18 @@ RAG_MAX_CONTEXT_WORDS=2500
 
 ### Step 4 · Launch the Backend
 
+You can launch using the automated startup script (which protects your `.env` and activates your environment automatically):
+
 ```bash
+# Option A: One-click safe startup script (Recommended)
+./start.sh
+```
+
+Or run Uvicorn directly:
+
+```bash
+# Option B: Direct command
+source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -644,6 +660,7 @@ DocuMind/
 │   ├── scripts/                    # 🔨 Utility scripts
 │   ├── tests/                      # 🧪 Pytest test suite
 │   ├── requirements.txt
+│   ├── start.sh                # 🚀 Safe startup script
 │   └── .env.example
 │
 ├── 🎨 frontend/
