@@ -1,3 +1,4 @@
+import os
 import logging
 import random
 import time
@@ -46,25 +47,39 @@ class ConversationService:
         """
         Persists a new conversation with bounded exponential backoff and jitter
         strictly for transient SQLite lock contention errors.
+        Captures high-resolution timing, pid, and outcome for diagnostic tracing.
         """
         delay = initial_delay
+        t_total = time.perf_counter()
         for attempt in range(max_retries + 1):
+            t_att = time.perf_counter()
             try:
                 db.add(conversation)
                 db.commit()
                 db.refresh(conversation)
+                dur_ms = (time.perf_counter() - t_att) * 1000
+                total_ms = (time.perf_counter() - t_total) * 1000
+                logger.info(
+                    f"[ConversationService:CreateConversation] pid={os.getpid()} id='{conversation.id}' "
+                    f"attempt={attempt + 1} attempt_ms={dur_ms:.2f} total_ms={total_ms:.2f} outcome=commit_success"
+                )
                 return conversation
             except Exception as e:
                 db.rollback()
+                dur_ms = (time.perf_counter() - t_att) * 1000
                 if is_sqlite_locked_error(e) and attempt < max_retries:
                     logger.warning(
-                        f"[ConversationService] Transient SQLite lock on attempt {attempt + 1}/{max_retries + 1}. "
-                        f"Retrying in {delay:.3f}s: {e}"
+                        f"[ConversationService:CreateConversation] pid={os.getpid()} Transient SQLite lock on "
+                        f"attempt {attempt + 1}/{max_retries + 1} after {dur_ms:.2f}ms. Retrying in {delay:.3f}s: {e}"
                     )
                     time.sleep(delay + random.uniform(0.01, 0.05))
                     delay = min(delay * 2, 0.5)
                     continue
-                logger.error(f"[ConversationService] Failed to create conversation: {e}", exc_info=True)
+                logger.error(
+                    f"[ConversationService:CreateConversation] pid={os.getpid()} Failed on attempt {attempt + 1} "
+                    f"after {dur_ms:.2f}ms: {e}",
+                    exc_info=True
+                )
                 raise
 
     def create_conversation(

@@ -310,3 +310,111 @@ def test_is_sqlite_locked_error_detection():
 
     value_err = ValueError("Invalid parameter")
     assert is_sqlite_locked_error(value_err) is False
+
+
+def test_overlapping_document_processing_and_conversation_creation(temp_sqlite_file_db, monkeypatch, tmp_path):
+    """
+    Requirement 7: Reproducible test overlapping realistic document processing
+    (Phase 1 -> 2 -> 3 -> 4 [LLM delay] -> 5) with concurrent conversation creation
+    requests using independent sessions on a temporary file-backed SQLite database.
+    """
+    from app.services.document_pipeline import process_document
+    from app.services import document_pipeline as dp_module
+    from app.services import document_service as ds_module
+    from app.core.config import settings
+
+    Session = temp_sqlite_file_db["Session"]
+    service = ConversationService()
+
+    # Point SessionLocal in pipeline to the temp file db
+    monkeypatch.setattr(dp_module, "SessionLocal", Session)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
+    # Create dummy upload file on disk
+    upload_file = tmp_path / "concurrent_doc.txt"
+    upload_file.write_text("DocuMind artificial intelligence text analytics pipeline.", encoding="utf-8")
+
+    # Seed document
+    with Session() as db:
+        doc = Document(
+            id="doc-overlap-test",
+            name="concurrent_doc.txt",
+            original_filename="concurrent_doc.txt",
+            file_path=str(upload_file),
+            file_type="TXT",
+            size_bytes=upload_file.stat().st_size,
+            status="pending"
+        )
+        db.add(doc)
+        db.commit()
+
+    # Mock LLM and embeddings to introduce realistic concurrency overlap without external network
+    import time
+    def delayed_analyze(text):
+        time.sleep(0.4)  # Simulate external LLM network latency
+        return {
+            "summary": "Grounded AI analytics summary.",
+            "key_findings": [{"text": "Finding 1", "priority": "high"}],
+            "entities": [{"name": "DocuMind", "type": "PRODUCT"}],
+            "provider": "groq",
+            "quota_exceeded": False
+        }
+
+    from app.services.llm_service import llm_service
+    monkeypatch.setattr(llm_service, "analyze_document", delayed_analyze)
+
+    pipeline_success = []
+    conv_success = []
+    errors = []
+
+    def run_pipeline():
+        try:
+            # Notice db=None, replicating production background_tasks.add_task
+            ok = process_document("doc-overlap-test", db=None)
+            pipeline_success.append(ok)
+        except Exception as e:
+            errors.append(("pipeline", e))
+
+    def run_create_conversation(worker_id):
+        try:
+            # Independent session per request, exactly as in FastAPI
+            with Session() as db:
+                c = service.create_conversation(
+                    db,
+                    document_id="doc-overlap-test",
+                    title=f"Chat {worker_id}"
+                )
+                conv_success.append(c.id)
+        except Exception as e:
+            errors.append(("conversation", e))
+
+    threads = []
+    # 1. Start pipeline thread
+    t_pipe = threading.Thread(target=run_pipeline)
+    threads.append(t_pipe)
+
+    # 2. Start overlapping conversation threads that execute during chunking & LLM analysis
+    for i in range(6):
+        t_conv = threading.Thread(target=run_create_conversation, args=(i,))
+        threads.append(t_conv)
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(errors) == 0, f"Encountered concurrency errors: {errors}"
+    assert pipeline_success == [True]
+    assert len(conv_success) == 6
+
+    # Verify document is analyzed and analysis records exist
+    with Session() as db:
+        final_doc = db.query(Document).filter(Document.id == "doc-overlap-test").first()
+        assert final_doc.status == "analyzed"
+        assert final_doc.analysis is not None
+        assert final_doc.analysis.summary == "Grounded AI analytics summary."
+        assert len(final_doc.findings) == 1
+        assert len(final_doc.entities) == 1
+        convs = service.list_conversations(db, document_id="doc-overlap-test")
+        assert len(convs) == 6
+
