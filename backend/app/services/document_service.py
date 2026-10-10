@@ -130,10 +130,14 @@ class DocumentService:
             status="pending",
             category=category or "General"
         )
-        db.add(db_document)
-        db.commit()
-        db.refresh(db_document)
-        return db_document
+        try:
+            db.add(db_document)
+            db.commit()
+            db.refresh(db_document)
+            return db_document
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def get_documents(
@@ -213,9 +217,13 @@ class DocumentService:
             print(f"Warning: Failed to delete physical file {doc.file_path}: {e}")
 
         # 4. Delete document record (cascading deletes analysis, entities, findings)
-        db.delete(doc)
-        db.commit()
-        return True
+        try:
+            db.delete(doc)
+            db.commit()
+            return True
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def get_physical_file_path(doc: Document) -> Path:

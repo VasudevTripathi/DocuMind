@@ -78,28 +78,36 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
 
         # 7. Persist chunks in SQLite (idempotently replaces previous chunks if reprocessed)
         persisted_chunks = ChunkService.replace_chunks(db, doc.id, raw_chunks)
-
-        # 8. Generate local embeddings
         chunk_texts = [c.text for c in persisted_chunks]
+        chunk_ids = [c.id for c in persisted_chunks]
+        # Commit chunks immediately so the SQLite write lock is NOT held during
+        # long-running embedding, vector indexing, or external LLM API calls.
+        db.commit()
+
+        # 8. Generate local embeddings (no DB transaction held)
         embeddings = embedding_service.embed_chunks(chunk_texts)
 
-        # 9. Update FAISS vector store
-        chunk_ids = [c.id for c in persisted_chunks]
+        # 9. Update FAISS vector store (no DB transaction held)
         vector_store.add_document_chunks(doc.id, chunk_ids, embeddings)
         logger.info(f"[Pipeline] Indexed {len(chunk_ids)} chunk vectors in FAISS for document {doc.id}.")
 
-        # 10. Run local ML classifier
+        # 10. Run local ML classifier (no DB transaction held)
         ml_result = predict_category(cleaned_text)
         predicted_category = ml_result.get("category", "General")
         confidence = ml_result.get("confidence", 0.0)
 
-        # Update document's category to the ML prediction
-        doc.category = predicted_category
-
-        # 11. Send to LLM for summary, key findings, and entity extraction
+        # 11. Send to LLM for summary, key findings, and entity extraction (no DB transaction held)
         llm_result = llm_service.analyze_document(cleaned_text)
 
-        # 12. Clean up any existing analysis records for this document to prevent duplicates
+        # 12. Save analysis in a dedicated, short transaction
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            logger.error(f"[Pipeline] Document '{document_id}' was removed before analysis could be saved.")
+            return False
+
+        doc.category = predicted_category
+
+        # Clean up any existing analysis records for this document to prevent duplicates
         if doc.analysis:
             db.delete(doc.analysis)
         db.query(DocumentFinding).filter(DocumentFinding.document_id == doc.id).delete()
@@ -156,7 +164,7 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
                 )
                 db.add(entity_record)
 
-        # 13. Set status = 'analyzed'
+        # 13. Set status = 'analyzed' and commit immediately
         doc.status = "analyzed"
         db.commit()
         db.refresh(doc)

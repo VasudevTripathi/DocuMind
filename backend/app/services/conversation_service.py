@@ -1,9 +1,12 @@
 import logging
+import random
+import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import is_sqlite_locked_error
 from app.models.document import Document
 from app.models.conversation import Conversation, ConversationMessage
 from app.services.retrieval_service import retrieval_service, RetrievalService, DocumentNotFoundError
@@ -33,6 +36,37 @@ class ConversationService:
         self.retrieval_service = retrieval
         self.llm_service = llm
 
+    def _persist_conversation_with_retry(
+        self,
+        db: Session,
+        conversation: Conversation,
+        max_retries: int = 3,
+        initial_delay: float = 0.05
+    ) -> Conversation:
+        """
+        Persists a new conversation with bounded exponential backoff and jitter
+        strictly for transient SQLite lock contention errors.
+        """
+        delay = initial_delay
+        for attempt in range(max_retries + 1):
+            try:
+                db.add(conversation)
+                db.commit()
+                db.refresh(conversation)
+                return conversation
+            except Exception as e:
+                db.rollback()
+                if is_sqlite_locked_error(e) and attempt < max_retries:
+                    logger.warning(
+                        f"[ConversationService] Transient SQLite lock on attempt {attempt + 1}/{max_retries + 1}. "
+                        f"Retrying in {delay:.3f}s: {e}"
+                    )
+                    time.sleep(delay + random.uniform(0.01, 0.05))
+                    delay = min(delay * 2, 0.5)
+                    continue
+                logger.error(f"[ConversationService] Failed to create conversation: {e}", exc_info=True)
+                raise
+
     def create_conversation(
         self,
         db: Session,
@@ -50,10 +84,7 @@ class ConversationService:
             document_id=document_id,
             title=conv_title
         )
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
-        return conversation
+        return self._persist_conversation_with_retry(db, conversation)
 
     def list_conversations(
         self,
@@ -83,9 +114,14 @@ class ConversationService:
         conv = self.get_conversation(db, conversation_id)
         if not conv:
             return False
-        db.delete(conv)
-        db.commit()
-        return True
+        try:
+            db.delete(conv)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[ConversationService] Failed to delete conversation '{conversation_id}': {e}", exc_info=True)
+            raise
 
     def post_message(
         self,
@@ -164,7 +200,7 @@ class ConversationService:
             min_similarity=settings.RAG_MIN_SIMILARITY
         )
 
-        # 1. Persist user message
+        # 1. Persist user message and update conversation metadata immediately
         user_msg = ConversationMessage(
             conversation_id=conversation.id,
             role="user",
@@ -177,6 +213,13 @@ class ConversationService:
             conversation.title = cleaned_content[:45] + ("..." if len(cleaned_content) > 45 else "")
 
         conversation.updated_at = datetime.now(timezone.utc)
+        try:
+            db.commit()
+            db.refresh(user_msg)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[ConversationService] Failed to persist user message: {e}", exc_info=True)
+            raise
 
         # 2. No-context safety: If no usable chunks retrieved, do NOT call LLM
         if not usable_chunks:
@@ -192,9 +235,14 @@ class ConversationService:
                 provider="rag_guard",
                 model="guard-rule"
             )
-            db.add(assistant_msg)
-            db.commit()
-            db.refresh(assistant_msg)
+            try:
+                db.add(assistant_msg)
+                db.commit()
+                db.refresh(assistant_msg)
+            except Exception as e:
+                db.rollback()
+                logger.error(f"[ConversationService] Failed to persist fallback assistant message: {e}", exc_info=True)
+                raise
 
             return {
                 "id": assistant_msg.id,
@@ -207,14 +255,14 @@ class ConversationService:
                 "model": "guard-rule"
             }
 
-        # 3. Assemble grounded context and bounded history
+        # 3. Assemble grounded context and bounded history (no DB lock held)
         context_str = format_grounded_context(usable_chunks)
         history_dicts = [
             {"role": m.role, "content": m.content}
             for m in recent_messages[-6:]
         ]
 
-        # 4. Generate grounded answer via LLM
+        # 4. Generate grounded answer via LLM (no DB transaction held during external network call)
         logger.info(
             f"[ConversationService] Calling LLM with {len(usable_chunks)} chunks and {len(history_dicts)} history turns."
         )
@@ -249,7 +297,7 @@ class ConversationService:
                 for c in usable_chunks
             ]
 
-        # 6. Persist assistant message
+        # 6. Persist assistant message in a dedicated short transaction
         provider_name = getattr(answer, "provider", "gemini" if self.llm_service.has_active_api_key else "heuristic_fallback")
         model_name = getattr(answer, "model", self.llm_service.model if self.llm_service.has_active_api_key else "extractive-rules")
 
@@ -261,9 +309,14 @@ class ConversationService:
             model=model_name
         )
         assistant_msg.sources = sources
-        db.add(assistant_msg)
-        db.commit()
-        db.refresh(assistant_msg)
+        try:
+            db.add(assistant_msg)
+            db.commit()
+            db.refresh(assistant_msg)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[ConversationService] Failed to persist assistant message: {e}", exc_info=True)
+            raise
 
         return {
             "id": assistant_msg.id,
