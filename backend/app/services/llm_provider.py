@@ -108,7 +108,7 @@ class GroqProvider(BaseLLMProvider):
             or os.environ.get("GROQ_MODEL")
             or getattr(settings, "LLM_MODEL", None)
             or os.environ.get("LLM_MODEL")
-            or "llama-3.3-70b-versatile"
+            or "qwen/qwen3.8-27b"
         )
         self.model = raw_model
         self.timeout = timeout
@@ -385,6 +385,7 @@ class GroqProvider(BaseLLMProvider):
             "with this exact structure:\n"
             "{\n"
             '  "summary": "Concise 2-4 sentence executive summary of the document.",\n'
+            '  "category": "Technical | Business | Academic | Financial | Legal | General | Research Paper",\n'
             '  "key_findings": [\n'
             '    {"text": "Key insight or critical takeaway 1", "priority": "high"},\n'
             '    {"text": "Key insight or critical takeaway 2", "priority": "medium"}\n'
@@ -428,8 +429,10 @@ class GroqProvider(BaseLLMProvider):
                 data = json.loads(match.group(0))
             else:
                 raise
+        cat_val = data.get("category")
         return {
             "summary": str(data.get("summary", "")).strip(),
+            "category": str(cat_val).strip() if cat_val else None,
             "key_findings": data.get("key_findings", []),
             "entities": data.get("entities", [])
         }
@@ -859,6 +862,7 @@ class GeminiProvider(BaseLLMProvider):
             "with this exact structure:\n"
             "{\n"
             '  "summary": "Concise 2-4 sentence executive summary of the document.",\n'
+            '  "category": "Technical | Business | Academic | Financial | Legal | General | Research Paper",\n'
             '  "key_findings": [\n'
             '    {"text": "Key insight or critical takeaway 1", "priority": "high"},\n'
             '    {"text": "Key insight or critical takeaway 2", "priority": "medium"}\n'
@@ -900,8 +904,10 @@ class GeminiProvider(BaseLLMProvider):
                 data = json.loads(match.group(0))
             else:
                 raise
+        cat_val = data.get("category")
         return {
             "summary": str(data.get("summary", "")).strip(),
+            "category": str(cat_val).strip() if cat_val else None,
             "key_findings": data.get("key_findings", []),
             "entities": data.get("entities", [])
         }
@@ -1153,22 +1159,84 @@ class HeuristicFallbackProvider(BaseLLMProvider):
         return " ".join(top_sentences)
 
     def analyze_document(self, text: str) -> Dict[str, Any]:
-        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 20]
-        summary = " ".join(sentences[:3]) if sentences else text[:300]
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+        content_lines = []
+        for line in lines:
+            if re.search(r'(@|https?://|www\.|\+?\d{8,}|page \d+ of \d+)', line, re.IGNORECASE):
+                continue
+            content_lines.append(line)
+
+        paragraphs = []
+        curr = []
+        for line in content_lines:
+            if len(line) < 45 and not line.endswith('.'):
+                if curr:
+                    paragraphs.append(" ".join(curr))
+                    curr = []
+                continue
+            curr.append(line)
+        if curr:
+            paragraphs.append(" ".join(curr))
+
+        normalized_content = " ".join(paragraphs) if paragraphs else " ".join(content_lines)
+        normalized_content = re.sub(r'\s+', ' ', normalized_content).strip()
+
+        raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', normalized_content) if len(s.strip()) > 25]
+        if not raw_sentences:
+            raw_sentences = [l for l in content_lines if len(l) > 25]
+
+        clean_sentences = []
+        for s in raw_sentences:
+            s_clean = re.sub(r'\s+', ' ', s).strip()
+            if len(s_clean.split()) >= 5 and s_clean not in clean_sentences:
+                clean_sentences.append(s_clean)
+
+        summary = " ".join(clean_sentences[:3]) if clean_sentences else (normalized_content[:300] if normalized_content else text[:300])
+
         findings = []
-        for s in sentences[:6]:
+        for s in clean_sentences[:5]:
             findings.append({"text": s, "priority": "high" if len(findings) < 2 else "medium"})
-        entity_patterns = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", text)
+
         entities = []
         seen = set()
-        for ent in entity_patterns:
-            ent_clean = ent.strip()
-            if ent_clean.lower() not in seen and len(ent_clean) > 3:
-                seen.add(ent_clean.lower())
-                entities.append({"name": ent_clean, "type": "CONCEPT"})
-            if len(entities) >= 6:
+        for line in lines:
+            if re.search(r'(@|https?://|www\.|\+?\d{8,})', line, re.IGNORECASE):
+                continue
+            line_entities = re.findall(r'\b([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})\b', line)
+            for ent in line_entities:
+                ent_clean = ent.strip()
+                ent_lower = ent_clean.lower()
+                if ent_lower in {
+                    "contact", "summary", "education", "experience", "certifications",
+                    "top skills", "page", "page of", "bachelor of", "overview",
+                    "skills", "projects", "internship", "project"
+                }:
+                    continue
+                if len(ent_clean) > 3 and ent_lower not in seen:
+                    seen.add(ent_lower)
+                    if any(w in ent_clean for w in ["University", "College", "Corp", "Inc", "Company", "Foundation", "Technologies"]):
+                        etype = "ORGANIZATION"
+                    elif any(w in ent_clean for w in ["India", "Pradesh", "City", "State", "County", "London", "York", "Punjab"]):
+                        etype = "LOCATION"
+                    elif any(w in ent_clean for w in ["Python", "Linux", "React", "Cloud", "Java", "Docker", "Kubernetes", "SQL", "Database"]):
+                        etype = "TECHNOLOGY"
+                    elif len(ent_clean.split()) == 2 and not any(w in ent_clean for w in ["System", "Data", "Cloud", "Model", "Awareness"]):
+                        etype = "PERSON"
+                    else:
+                        etype = "CONCEPT"
+                    entities.append({"name": ent_clean, "type": etype})
+                if len(entities) >= 8:
+                    break
+            if len(entities) >= 8:
                 break
-        return {"summary": summary, "key_findings": findings, "entities": entities}
+
+        return {
+            "summary": summary,
+            "category": "General",
+            "key_findings": findings,
+            "entities": entities
+        }
 
     def explain_comparison(
         self,

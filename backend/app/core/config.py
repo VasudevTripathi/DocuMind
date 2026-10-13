@@ -12,14 +12,14 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str | None = None
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     GROQ_MAX_RETRIES: int = 2
     GROQ_INITIAL_BACKOFF: float = 1.0
 
     GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
     GEMINI_MODEL: str | None = None
-    LLM_MODEL: str = "llama-3.3-70b-versatile"
+    LLM_MODEL: str = "qwen/qwen3.8-27b"
     GEMINI_MAX_RETRIES: int = 2
     GEMINI_INITIAL_BACKOFF: float = 1.0
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     @property
     def active_groq_model(self) -> str:
-        return self.GROQ_MODEL or "llama-3.3-70b-versatile"
+        return self.GROQ_MODEL or "qwen/qwen3.8-27b"
 
     @property
     def active_gemini_model(self) -> str:

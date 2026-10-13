@@ -84,7 +84,7 @@ class LLMService:
                 self.api_key = api_key
             else:
                 self.api_key = groq_key or gemini_key
-            self.model = model or getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+            self.model = model or getattr(settings, "GROQ_MODEL", None) or "qwen/qwen3.8-27b"
         elif configured_provider == "groq":
             if groq_key:
                 self.provider_type = "groq"
@@ -93,7 +93,7 @@ class LLMService:
                     model
                     or getattr(settings, "GROQ_MODEL", None)
                     or os.environ.get("GROQ_MODEL")
-                    or "llama-3.3-70b-versatile"
+                    or "qwen/qwen3.8-27b"
                 )
                 self._primary_provider = GroqProvider(
                     api_key=self.api_key,
@@ -123,7 +123,7 @@ class LLMService:
             else:
                 self.provider_type = "groq"
                 self.api_key = None
-                self.model = model or getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                self.model = model or getattr(settings, "GROQ_MODEL", None) or "qwen/qwen3.8-27b"
                 self._primary_provider = None
         else:
             if gemini_key:
@@ -140,13 +140,13 @@ class LLMService:
                 if groq_key:
                     self._secondary_provider = GroqProvider(
                         api_key=groq_key,
-                        model=getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                        model=getattr(settings, "GROQ_MODEL", None) or "qwen/qwen3.8-27b"
                     )
             elif groq_key:
                 logger.info("[LLMService] Gemini API key is not configured; auto-failing over to active Groq API key.")
                 self.provider_type = "groq"
                 self.api_key = groq_key
-                self.model = getattr(settings, "GROQ_MODEL", None) or "llama-3.3-70b-versatile"
+                self.model = getattr(settings, "GROQ_MODEL", None) or "qwen/qwen3.8-27b"
                 self._primary_provider = GroqProvider(
                     api_key=self.api_key,
                     model=self.model,
@@ -352,7 +352,18 @@ class LLMService:
             except Exception as e:
                 err_str = str(e)
                 is_quota = "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "ratelimit" in err_str.lower()
-                logger.warning(f"[LLMService] {self.active_provider_name} document analysis failed ({e}). Employing fallback.")
+                logger.warning(f"[LLMService] {self.active_provider_name} document analysis failed ({e}). Checking secondary provider.")
+                if self._secondary_provider:
+                    try:
+                        sec_name = getattr(self._secondary_provider, "provider_name", "secondary")
+                        logger.info(f"[LLMService] Attempting document analysis failover to secondary provider ({sec_name})...")
+                        res = self._secondary_provider.analyze_document(text)
+                        res["provider"] = sec_name
+                        res["quota_exceeded"] = False
+                        return res
+                    except Exception as e2:
+                        logger.warning(f"[LLMService] Secondary provider ({sec_name}) document analysis failed: {e2}")
+
                 fallback = self._fallback_provider.analyze_document(text)
                 fallback["provider"] = "quota_exhausted" if is_quota else "heuristic_fallback"
                 fallback["quota_exceeded"] = is_quota
@@ -385,9 +396,16 @@ class LLMService:
             except Exception as e:
                 logger.warning(
                     f"[LLMService] {self.active_provider_name} comparison explanation failed ({e}). "
-                    f"Employing deterministic heuristic fallback.",
+                    f"Checking secondary provider.",
                     exc_info=False
                 )
+                if self._secondary_provider:
+                    try:
+                        sec_name = getattr(self._secondary_provider, "provider_name", "secondary")
+                        logger.info(f"[LLMService] Attempting comparison explanation failover to secondary provider ({sec_name})...")
+                        return self._secondary_provider.explain_comparison(doc_a_name, doc_b_name, differences_data)
+                    except Exception as e2:
+                        logger.warning(f"[LLMService] Secondary provider ({sec_name}) comparison explanation also failed: {e2}")
 
         logger.info("[LLMService] Utilizing deterministic heuristic comparison explanation.")
         return self._fallback_provider.explain_comparison(doc_a_name, doc_b_name, differences_data)

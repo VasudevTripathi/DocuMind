@@ -210,3 +210,28 @@ def test_groq_explain_comparison():
     result = provider.explain_comparison("Spec A", "Spec B", diffs)
     assert result.provider == "groq"
     assert "Document B increases storage" in result.text
+
+def test_llm_service_analyze_document_secondary_failover():
+    service = LLMService(api_key="gsk_test")
+    fake_primary = MagicMock()
+    fake_primary.analyze_document.side_effect = Exception("404 Model Not Found")
+    fake_primary.provider_name = "groq"
+
+    fake_secondary = MagicMock()
+    fake_secondary.analyze_document.return_value = {
+        "summary": "Secondary provider generated summary.",
+        "category": "Technical",
+        "key_findings": [{"text": "Key takeaway", "priority": "high"}],
+        "entities": [{"name": "DocuMind", "type": "TECHNOLOGY"}]
+    }
+    fake_secondary.provider_name = "gemini"
+
+    service._primary_provider = fake_primary
+    service._secondary_provider = fake_secondary
+
+    res = service.analyze_document("Test document content.")
+    assert res["provider"] == "gemini"
+    assert res["summary"] == "Secondary provider generated summary."
+    assert res["category"] == "Technical"
+    assert len(res["key_findings"]) == 1
+

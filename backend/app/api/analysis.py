@@ -58,6 +58,14 @@ def get_document_analysis(
                 conf = ml_result.get("confidence", 0.0)
                 llm_res = llm_service.analyze_document(combined_text)
 
+                llm_category = llm_res.get("category") if isinstance(llm_res, dict) else None
+                valid_categories = {"Technical", "Business", "Academic", "Financial", "Legal", "General", "Research Paper"}
+                if llm_category and llm_category in valid_categories:
+                    if conf < 0.40 or (cat == "General" and llm_category != "General"):
+                        cat = llm_category
+                        conf = max(conf, 0.85)
+                doc.category = cat
+
                 summary_text = llm_res.get("summary") if isinstance(llm_res, dict) else ""
                 if not summary_text or not summary_text.strip():
                     summary_text = "Executive summary unavailable."

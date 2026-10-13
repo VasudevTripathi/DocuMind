@@ -147,6 +147,18 @@ def process_document(document_id: str, db: Optional[Session] = None) -> bool:
         confidence = ml_result.get("confidence", 0.0)
 
         llm_result = llm_service.analyze_document(cleaned_text)
+
+        llm_category = llm_result.get("category") if isinstance(llm_result, dict) else None
+        valid_categories = {"Technical", "Business", "Academic", "Financial", "Legal", "General", "Research Paper"}
+        if llm_category and llm_category in valid_categories:
+            if confidence < 0.40 or (predicted_category == "General" and llm_category != "General"):
+                logger.info(
+                    f"[Pipeline] Refined category from ML '{predicted_category}' (conf {confidence:.2f}) "
+                    f"to LLM '{llm_category}'."
+                )
+                predicted_category = llm_category
+                confidence = max(confidence, 0.85)
+
         p4_ms = (time.perf_counter() - p4_start) * 1000
         logger.info(
             f"[Pipeline:Stage4:EmbeddingAndLLM] Completed in {p4_ms:.2f}ms (Category: '{predicted_category}', Conf: {confidence:.2f})."
