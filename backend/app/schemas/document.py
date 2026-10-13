@@ -1,4 +1,5 @@
 import math
+from datetime import timezone
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
@@ -26,8 +27,15 @@ class DocumentResponse(BaseModel):
 
     @classmethod
     def from_model(cls, doc) -> "DocumentResponse":
-        uploaded_iso = doc.uploaded_at.isoformat() if doc.uploaded_at else ""
-        modified_iso = doc.modified_at.isoformat() if doc.modified_at else uploaded_iso
+        def _to_utc_iso(dt) -> str:
+            if not dt:
+                return ""
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc).isoformat()
+            return dt.astimezone(timezone.utc).isoformat()
+
+        uploaded_iso = _to_utc_iso(doc.uploaded_at)
+        modified_iso = _to_utc_iso(doc.modified_at) or uploaded_iso
         return cls(
             id=doc.id,
             name=doc.name,

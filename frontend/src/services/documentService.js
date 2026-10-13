@@ -307,7 +307,15 @@ export const documentService = {
   formatDate(dateString) {
     if (!dateString) return 'Unknown';
     try {
-      const date = new Date(dateString);
+      let normalizedStr = dateString;
+      if (typeof normalizedStr === 'string') {
+        const trimmed = normalizedStr.trim();
+        // If ISO string does not include a timezone offset (+/-HH:MM or 'Z'), treat it as UTC
+        if (!trimmed.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+          normalizedStr = trimmed + 'Z';
+        }
+      }
+      const date = new Date(normalizedStr);
       if (isNaN(date.getTime())) return dateString;
 
       const now = new Date();
@@ -316,7 +324,7 @@ export const documentService = {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-      if (diffMinutes < 1) return 'Just now';
+      if (diffMs <= 0 || diffMinutes < 1) return 'Just now';
       if (diffMinutes < 60) return `${diffMinutes}m ago`;
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays === 1) return '1 day ago';

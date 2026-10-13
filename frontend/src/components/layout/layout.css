@@ -109,68 +109,6 @@
   flex-shrink: 0;
 }
 
-.sidebar-footer {
-  padding: var(--space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.storage-widget {
-  padding: var(--space-4);
-}
-
-.storage-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.storage-title {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-}
-
-.storage-stats {
-  font-size: var(--font-size-xs);
-  margin-bottom: var(--space-3);
-}
-
-.storage-used {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.storage-total {
-  color: var(--text-tertiary);
-}
-
-.progress-bar {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  margin-bottom: var(--space-4);
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
-  border-radius: var(--radius-full);
-}
-
-.upgrade-btn {
-  width: 100%;
-  padding: var(--space-2);
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .main-wrapper {
   flex: 1;
   display: flex;

@@ -6,7 +6,7 @@ import {
   Home, FileText, BarChart2, CheckSquare, Search, 
   MessageSquare, Calendar, Book, Folder, FolderKanban, 
   User, Settings, ChevronLeft, ChevronRight, HelpCircle, 
-  Zap, ArrowRight
+  Zap
 } from 'lucide-react';
 import './layout.css';
 
@@ -93,31 +93,6 @@ export const Sidebar = ({ isOpen, toggle, isMobile, closeMobileSidebar }) => {
                 <span className="nav-label">{project.name}</span>
               </NavLink>
             ))}
-          </div>
-        )}
-      </div>
-
-      <div className="sidebar-footer">
-        { (isOpen || isMobile) ? (
-          <div className="storage-widget clay-panel">
-            <div className="storage-header">
-              <span className="storage-title">Storage</span>
-              <span className="storage-icon">⋮</span>
-            </div>
-            <div className="storage-stats">
-              <span className="storage-used">2.4 GB</span>
-              <span className="storage-total"> / 10 GB</span>
-            </div>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: '24%' }}></div>
-            </div>
-            <button className="upgrade-btn">
-              Upgrade <ArrowRight size={14} />
-            </button>
-          </div>
-        ) : (
-          <div className="storage-widget-collapsed">
-            <div className="progress-circle"></div>
           </div>
         )}
       </div>

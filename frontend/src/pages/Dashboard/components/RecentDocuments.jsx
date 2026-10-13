@@ -118,7 +118,7 @@ export const RecentDocuments = () => {
                   </td>
                   <td className="text-secondary">{doc.type || documentService.getFileType(doc.name)}</td>
                   <td className="text-secondary">{doc.size}</td>
-                  <td className="text-secondary">{documentService.formatDate(doc.uploadedAt || doc.modifiedAt)}</td>
+                  <td className="text-secondary">{documentService.formatDate(doc.modifiedAt || doc.uploadedAt)}</td>
                   <td>
                     {getStatusBadge(doc.status)}
                   </td>
