@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   MessageSquare, Send, Plus, Trash2, Bot, User, 
-  ChevronDown, ChevronUp, FileText, Loader2, Sparkles, AlertCircle 
+  ChevronDown, ChevronUp, FileText, Loader2, Sparkles, AlertCircle, X 
 } from 'lucide-react';
 import { conversationService } from '../../services/conversationService';
 import { documentService } from '../../services/documentService';
@@ -24,6 +24,7 @@ export const Chat = () => {
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [expandedSources, setExpandedSources] = useState({});
+  const [showMobileList, setShowMobileList] = useState(false);
 
   const messagesEndRef = useRef(null);
 
@@ -196,20 +197,33 @@ export const Chat = () => {
   return (
     <div className="chat-container">
       {/* Sidebar: Conversations & Document Scoping */}
-      <div className="chat-sidebar">
+      <div className={`chat-sidebar ${showMobileList ? 'mobile-visible' : ''}`}>
         <div className="chat-sidebar-header">
           <div className="chat-sidebar-title">
             <MessageSquare size={18} className="text-accent-primary" />
             <span>Conversations</span>
           </div>
-          <button 
-            className="chat-send-btn" 
-            style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)' }}
-            onClick={handleCreateNewConversation}
-            title="Start New Conversation"
-          >
-            <Plus size={16} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button 
+              className="chat-send-btn" 
+              style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)' }}
+              onClick={async () => {
+                await handleCreateNewConversation();
+                setShowMobileList(false);
+              }}
+              title="Start New Conversation"
+            >
+              <Plus size={16} />
+            </button>
+            <button
+              type="button"
+              className="chat-sidebar-mobile-close"
+              onClick={() => setShowMobileList(false)}
+              aria-label="Close conversations list"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Document Scoping Filter */}
@@ -247,7 +261,10 @@ export const Chat = () => {
               <div 
                 key={conv.id} 
                 className={`conv-item ${activeConvId === conv.id ? 'active' : ''}`}
-                onClick={() => setActiveConvId(conv.id)}
+                onClick={() => {
+                  setActiveConvId(conv.id);
+                  setShowMobileList(false);
+                }}
               >
                 <div className="conv-info">
                   <span className="conv-title">{conv.title || 'Untitled Chat'}</span>
@@ -274,7 +291,17 @@ export const Chat = () => {
         {/* Header */}
         <div className="chat-main-header">
           <div className="chat-header-info">
-            <h2>{activeConv?.title || 'Document AI Assistant'}</h2>
+            <div className="chat-header-top-row">
+              <button 
+                type="button" 
+                className="mobile-conv-btn"
+                onClick={() => setShowMobileList(true)}
+              >
+                <MessageSquare size={14} />
+                <span>Chats ({conversations.length})</span>
+              </button>
+              <h2>{activeConv?.title || 'Document AI Assistant'}</h2>
+            </div>
             <div className="chat-header-scope">
               <Sparkles size={13} className="text-accent-secondary" />
               <span>

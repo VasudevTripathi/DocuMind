@@ -1,11 +1,14 @@
 import React from 'react';
 import { UploadDropzone } from '../Dashboard/components/UploadDropzone';
-import { Zap } from 'lucide-react';
+import { Zap, ArrowRight, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useUser } from '../../hooks/useUser';
 import '../../components/layout/layout.css';
 import './Landing.css';
 
-export const Landing = () => {
+export const Landing = ({ initialOpenNamePrompt = false }) => {
+  const { userName } = useUser();
+
   return (
     <div className="landing-container">
       <header className="landing-header">
@@ -16,11 +19,19 @@ export const Landing = () => {
           <span className="brand-name">DocuMind AI</span>
         </Link>
         <Link to="/dashboard" className="landing-dashboard-btn">
-          Go to Dashboard
+          {userName ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <User size={15} />
+              <span>{userName}</span>
+              <ArrowRight size={14} />
+            </span>
+          ) : (
+            <span>Go to Dashboard</span>
+          )}
         </Link>
       </header>
       <main className="landing-main">
-        <UploadDropzone />
+        <UploadDropzone initialOpenNamePrompt={initialOpenNamePrompt} />
       </main>
     </div>
   );

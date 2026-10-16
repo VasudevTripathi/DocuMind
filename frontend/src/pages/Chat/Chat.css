@@ -440,3 +440,129 @@
   border-color: rgba(99, 102, 241, 0.3);
   color: var(--text-primary);
 }
+
+/* Mobile Conversation Controls */
+.chat-sidebar-mobile-close {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px;
+  cursor: pointer;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.chat-sidebar-mobile-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-conv-btn {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-header-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .chat-container {
+    height: calc(100dvh - 80px);
+    height: calc(100vh - 80px);
+    padding: 0;
+    position: relative;
+    gap: 0;
+  }
+
+  .chat-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 85%;
+    max-width: 320px;
+    z-index: 60;
+    transform: translateX(-105%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 0;
+    background: rgba(14, 17, 27, 0.98);
+    backdrop-filter: blur(28px);
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.85);
+  }
+
+  .chat-sidebar.mobile-visible {
+    transform: translateX(0);
+  }
+
+  .chat-sidebar-mobile-close {
+    display: flex;
+  }
+
+  .mobile-conv-btn {
+    display: inline-flex;
+  }
+
+  .chat-main {
+    border-radius: var(--radius-md);
+    width: 100%;
+  }
+
+  .chat-main-header {
+    padding: 10px 14px;
+  }
+
+  .chat-main-header h2 {
+    font-size: var(--font-size-sm);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-header-scope {
+    font-size: 11px;
+  }
+
+  .chat-messages-area {
+    padding: 12px 10px;
+    gap: var(--space-4);
+  }
+
+  .msg-bubble {
+    max-width: 88%;
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  .chat-input-area {
+    padding: 10px 12px;
+  }
+
+  .chat-textarea {
+    font-size: 13px;
+    padding: 8px 12px;
+    min-height: 38px;
+    max-height: 90px;
+  }
+
+  .chat-send-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+

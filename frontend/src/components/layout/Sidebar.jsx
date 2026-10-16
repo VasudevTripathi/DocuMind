@@ -40,10 +40,13 @@ export const Sidebar = ({ isOpen, toggle, isMobile, closeMobileSidebar }) => {
       initial={false}
       animate={{ 
         width: isMobile ? 260 : (isOpen ? 260 : 80),
-        x: isMobile ? (isOpen ? 0 : -100 + '%') : 0 // The percentage string x:-100% works better in Framer Motion for full offset
+        x: isMobile ? (isOpen ? '0%' : '-100%') : '0%'
       }}
-      style={{ x: isMobile ? (isOpen ? 0 : '-100%') : 0 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      style={{ 
+        pointerEvents: isMobile && !isOpen ? 'none' : 'auto',
+        visibility: isMobile && !isOpen ? 'hidden' : 'visible'
+      }}
+      transition={{ duration: 0.28, ease: "easeInOut" }}
     >
       <div className="sidebar-header">
         <Link 

@@ -1289,6 +1289,36 @@
   .compare-execute-btn {
     width: 100%;
   }
+
+  .diff-view-mode-toggle {
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding: 3px;
+  }
+
+  .view-mode-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .compare-title {
+    font-size: 1.35rem;
+  }
+
+  .statistics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-diff-table th,
+  .compare-diff-table td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
 }
 
 /* Diff View Mode Toggle */
